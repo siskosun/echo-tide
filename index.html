@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Echo Tide / 叠影潮</title>
+    <style>
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: #0b1220;
+        color: #e8eefc;
+        font-family: system-ui, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      h1 { font-size: 1.25rem; font-weight: 600; margin: 0 0 0.5rem; }
+      p { margin: 0 0 1rem; opacity: 0.75; font-size: 0.9rem; }
+      canvas {
+        background: #132033;
+        border: 1px solid #2a3f5f;
+        border-radius: 8px;
+        image-rendering: pixelated;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Echo Tide / 叠影潮</h1>
+    <p>Temporal echo platformer stub — game-exp prototype</p>
+    <canvas id="game" width="640" height="360" aria-label="Echo Tide game canvas"></canvas>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
