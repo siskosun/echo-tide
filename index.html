@@ -5,31 +5,64 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Echo Tide / 叠影潮</title>
     <style>
+      :root {
+        color-scheme: dark;
+        --ink: #e7fff8;
+        --muted: #9fb8b4;
+      }
       html, body {
         margin: 0;
-        height: 100%;
-        background: #0b1220;
-        color: #e8eefc;
-        font-family: system-ui, sans-serif;
+        min-height: 100%;
+        background:
+          radial-gradient(900px 420px at 50% -10%, #13464c 0%, transparent 60%),
+          #070d12;
+        color: var(--ink);
+        font-family: "WenQuanYi Micro Hei", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif;
+      }
+      body {
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
+        padding: 28px 16px 40px;
       }
-      h1 { font-size: 1.25rem; font-weight: 600; margin: 0 0 0.5rem; }
-      p { margin: 0 0 1rem; opacity: 0.75; font-size: 0.9rem; }
+      .wrap { width: min(960px, 100%); }
+      h1 {
+        font-size: 1.35rem;
+        font-weight: 640;
+        letter-spacing: 0.04em;
+        margin: 0 0 6px;
+      }
+      h1 span { color: #8ef6df; font-weight: 520; }
+      .lede {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.45;
+      }
       canvas {
-        background: #132033;
-        border: 1px solid #2a3f5f;
-        border-radius: 8px;
-        image-rendering: pixelated;
+        width: 100%;
+        height: auto;
+        display: block;
+        background: #071018;
+        border-radius: 12px;
+        box-shadow: 0 22px 50px rgba(0, 0, 0, 0.35), 0 0 0 1px #24555a;
+      }
+      canvas:focus { outline: 2px solid #8ef6df; outline-offset: 3px; }
+      .foot {
+        margin: 12px 0 0;
+        color: var(--muted);
+        font-size: 0.85rem;
+        line-height: 1.5;
       }
     </style>
   </head>
   <body>
-    <h1>Echo Tide / 叠影潮</h1>
-    <p>Temporal echo platformer stub — game-exp prototype</p>
-    <canvas id="game" width="640" height="360" aria-label="Echo Tide game canvas"></canvas>
+    <div class="wrap">
+      <h1>Echo Tide <span>/ 叠影潮</span></h1>
+      <p class="lede">用落下的回声铺一条会升起、再沉没的路。 Build a path from landings that rise, then sink.</p>
+      <canvas id="game" width="960" height="540" tabindex="0" aria-label="Echo Tide game canvas. Move with arrows or WASD, jump with space."></canvas>
+      <p class="foot">键盘 Keyboard：←→ / A D 移动 · 空格 Space / W / ↑ 跳跃 · R 重开 restart。先跳上中间石台，面朝出口落地，等回声变成实心再继续。</p>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

@@ -1,28 +1,92 @@
+import { WORLD, createGame, update } from './game.js';
+import { draw } from './render.js';
+
 const canvas = document.getElementById('game');
+const dpr = Math.min(window.devicePixelRatio || 1, 2);
+canvas.width = Math.round(WORLD.w * dpr);
+canvas.height = Math.round(WORLD.h * dpr);
 const ctx = canvas.getContext('2d');
+ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-function drawStub() {
-  ctx.fillStyle = '#132033';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+const keys = new Set();
+let game = createGame();
+let last = performance.now();
+let restartLatch = false;
+let pointerRestart = false;
+let audio;
 
-  // placeholder platforms
-  ctx.fillStyle = '#3d6ea8';
-  ctx.fillRect(40, 280, 120, 16);
-  ctx.fillRect(240, 220, 120, 16);
-  ctx.fillRect(440, 160, 120, 16);
+const held = {
+  left: () => keys.has('ArrowLeft') || keys.has('KeyA'),
+  right: () => keys.has('ArrowRight') || keys.has('KeyD'),
+  jump: () => keys.has('Space') || keys.has('ArrowUp') || keys.has('KeyW') || keys.has('KeyK'),
+};
 
-  // placeholder player
-  ctx.fillStyle = '#7dd3fc';
-  ctx.fillRect(70, 248, 24, 32);
+addEventListener('keydown', (event) => {
+  keys.add(event.code);
+  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(event.code)) {
+    event.preventDefault();
+  }
+});
 
-  // exit marker
-  ctx.fillStyle = '#fbbf24';
-  ctx.fillRect(500, 120, 28, 40);
+addEventListener('keyup', (event) => {
+  keys.delete(event.code);
+});
 
-  ctx.fillStyle = '#94a3b8';
-  ctx.font = '14px system-ui, sans-serif';
-  ctx.fillText('Echo Tide stub — jump to stamp delayed echo platforms', 16, 28);
-  ctx.fillText('叠影潮原型占位：落地后延迟升起回声平台', 16, 48);
+canvas.addEventListener('pointerdown', () => {
+  canvas.focus();
+  if (game.status !== 'playing') pointerRestart = true;
+});
+
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  const restartDown = keys.has('KeyR') || (game.status !== 'playing' && (keys.has('Enter') || pointerRestart));
+  const restart = restartDown && !restartLatch;
+  restartLatch = restartDown;
+  pointerRestart = false;
+
+  game = update(game, {
+    left: held.left(),
+    right: held.right(),
+    jump: held.jump(),
+    restart,
+  }, dt);
+  voice(game.events);
+  draw(ctx, game);
+  requestAnimationFrame(frame);
 }
 
-drawStub();
+function voice(events) {
+  for (const event of events) {
+    if (event.type === 'jump') tone(240, 0.08, 'sine', 0.03);
+    if (event.type === 'stamp') tone(360, 0.12, 'triangle', 0.035);
+    if (event.type === 'solid') tone(540, 0.16, 'sine', 0.04);
+    if (event.type === 'win') {
+      tone(660, 0.14, 'sine', 0.05);
+      setTimeout(() => tone(880, 0.2, 'sine', 0.05), 120);
+    }
+    if (event.type === 'lose') tone(120, 0.28, 'triangle', 0.05);
+  }
+}
+
+function tone(freq, dur, type, gainValue) {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    audio = audio || new AudioCtx();
+    if (audio.state === 'suspended') audio.resume();
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(gainValue, audio.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + dur);
+    osc.connect(gain).connect(audio.destination);
+    osc.start();
+    osc.stop(audio.currentTime + dur);
+  } catch {
+    audio = null;
+  }
+}
+
+requestAnimationFrame(frame);
