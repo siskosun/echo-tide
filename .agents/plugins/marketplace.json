@@ -1,0 +1,20 @@
+{
+  "name": "echo-tide-local",
+  "interface": {
+    "displayName": "echo-tide Plugins"
+  },
+  "plugins": [
+    {
+      "name": "game-exp",
+      "source": {
+        "source": "local",
+        "path": "./plugins/game-exp"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

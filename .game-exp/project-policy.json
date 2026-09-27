@@ -1,0 +1,34 @@
+{
+  "schema_version": 2,
+  "adapter": "node-npm",
+  "toolchain": {
+    "node_version": "26.10.0"
+  },
+  "install": {
+    "argv": [
+      "npm",
+      "ci"
+    ]
+  },
+  "test": {
+    "argv": [
+      "npm",
+      "test"
+    ]
+  },
+  "build": {
+    "argv": [
+      "npm",
+      "run",
+      "build"
+    ]
+  },
+  "candidate": {
+    "include": [
+      "dist"
+    ],
+    "required_paths": [
+      "dist/index.html"
+    ]
+  }
+}
