@@ -22,7 +22,7 @@ export const ECHO = {
   h: 14,
   shiftX: 230,
   shiftY: -76,
-  rise: 0.7,
+  rise: 0.24,
   solid: 5,
   sink: 0.6,
   riseFrom: 44,

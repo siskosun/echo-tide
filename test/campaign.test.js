@@ -2,8 +2,36 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, update, ECHO, PLAYER, LEVELS, maxJumpHeight } from '../src/game.js';
 import { playRoom } from './campaign-driver.js';
+import { draw } from '../src/render.js';
 const dt = 1 / 60;
 const tick = (g, input = {}) => update(g, input, dt);
+
+test('relay room supports immediate successive jumps with no wait for forming echoes', () => {
+  const { game } = playRoom(0, { flow: true });
+  assert.equal(game.status, 'won');
+  assert.ok(game.stats.echoLandings >= 2);
+  assert.ok(game.time < 7, `continuous route took ${game.time}s`);
+});
+
+test('renderer reveals an echo location only after a landing has created it', () => {
+  const dashes = [];
+  const ctx = new Proxy({}, {
+    get: (_, name) => name === 'createLinearGradient' ? () => ({ addColorStop() {} })
+      : name === 'setLineDash' ? values => dashes.push(values) : () => {},
+    set: () => true,
+  });
+  const game = createGame();
+  draw(ctx, game);
+  assert.equal(dashes.length, 0, 'no ghost destination on the starting dock');
+  let stamped = false;
+  for (const input of playRoom(0, { flow: true }).inputs) {
+    tick(game, input);
+    if (game.echoes.length) { stamped = true; break; }
+  }
+  assert.equal(stamped, true);
+  draw(ctx, game);
+  assert.ok(dashes.length > 0, 'the actual forming echo still communicates its location');
+});
 
 for (let level = 0; level < LEVELS.length; level++) {
   test(`room ${level + 1} has an input-only winning route using echoes`, () => {

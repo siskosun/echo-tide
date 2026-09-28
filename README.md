@@ -22,9 +22,9 @@ Open the URL Vite prints (usually `http://localhost:5173`).
 | Next room after winning | Enter or the Next button |
 | Replay any room | Room selector above the canvas |
 
-Land facing the direction in which you want to build. An echo forms after 0.7 seconds, remains solid for 5 seconds and then sinks. At most four rising/solid echoes coexist. Rooms 2–3 let you retain one solid echo with E: its remaining lifetime pauses. Transferring the anchor resumes the old bridge's remaining time. The anchor is protected from capacity eviction, but the room's 90-second timer still runs. Re-stamping an anchored bridge never moves or phases it out.
+Land facing the direction in which you want to build. An echo forms after 0.24 seconds, remains solid for 5 seconds and then sinks. At most four rising/solid echoes coexist. Rooms 2–3 let you retain one solid echo with E: its remaining lifetime pauses. Transferring the anchor resumes the old bridge's remaining time. The anchor is protected from capacity eviction, but the room's 90-second timer still runs. Re-stamping an anchored bridge never moves or phases it out.
 
-**面向你想造路的方向落地**。虚影预览生成位置；0.7 秒后回声可踩，5 秒后下沉，最多保留四块。第二、三关站在实心回声上按 E，可暂停一块平台的消失计时；换锚时旧平台恢复原有剩余寿命，重复按 E 松锚。房间仍有 90 秒时限。R 随时重开本关；切换浏览器标签页暂停计时。
+**面向你想造路的方向落地**。落地前不显示下一块平台的位置；落地后用短暂显形提示反馈实际生成位置，0.24 秒后回声可踩，5 秒后下沉，最多保留四块。第二、三关站在实心回声上按 E，可暂停一块平台的消失计时；换锚时旧平台恢复原有剩余寿命，重复按 E 松锚。房间仍有 90 秒时限。R 随时重开本关；切换浏览器标签页暂停计时。
 
 ## Three-room campaign / 三关体验
 

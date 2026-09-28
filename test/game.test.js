@@ -48,11 +48,11 @@ test('a landing stamps an echo that rises, solidifies, then sinks away', () => {
 
   const riseRect = echo();
   game.player.x = riseRect.x + 20;
-  game.player.y = riseRect.y - PLAYER.h - 40;
-  game.player.vy = 40;
+  game.player.y = riseRect.y - PLAYER.h - 2;
+  game.player.vy = 200;
   game.player.grounded = false;
   game.player.supportId = null;
-  for (let i = 0; i < 30; i += 1) game = update(game, {}, dt);
+  for (let i = 0; i < 6; i += 1) game = update(game, {}, dt);
   assert.equal(echo().phase, 'rise');
   assert.ok(game.player.y + PLAYER.h > riseRect.y + riseRect.h, 'rise phase is not solid');
 

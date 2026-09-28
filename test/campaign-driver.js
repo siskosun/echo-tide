@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createGame, update, PLAYER, PHYSICS, solidRects } from '../src/game.js';
 
 // Input-only routes from spawn. No teleporting, injected platforms or state edits.
-export function playRoom(level) {
+export function playRoom(level, { flow = false } = {}) {
   let game = createGame({ level });
   const inputs = [];
   const supports = [];
@@ -13,7 +13,7 @@ export function playRoom(level) {
     supports.push(game.player.supportId);
     assert.notEqual(game.status, 'lost', `room ${level}: route fell or timed out`);
   }
-  function wait(n = 45) {
+  function wait(n = flow ? 0 : 45) {
     const x = game.player.x;
     for (let i = 0; i < n; i++) step({ left: game.player.x > x, right: game.player.x <= x });
   }
@@ -30,7 +30,7 @@ export function playRoom(level) {
     assert.fail(`room ${level}: no landing towards ${id}`);
   }
   function echo(y) {
-    const found = game.echoes.find(e => e.phase === 'solid' && Math.abs(e.y - y) < 3);
+    const found = game.echoes.find(e => (e.phase === 'solid' || (flow && e.phase === 'rise')) && Math.abs(e.y - y) < 3);
     assert.ok(found, `room ${level}: no solid echo at y=${y}`);
     return found;
   }

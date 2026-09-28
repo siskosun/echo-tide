@@ -1,4 +1,4 @@
-import { ECHO, KILL_Y, WORLD, predictEcho } from './game.js';
+import { ECHO, KILL_Y, WORLD } from './game.js';
 
 const FONT = '"WenQuanYi Micro Hei", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif';
 
@@ -20,7 +20,6 @@ export function draw(ctx, game) {
 
   drawSky(ctx, game);
   drawWater(ctx, game);
-  if (game.status === 'playing' && game.player.grounded) drawPrediction(ctx, game);
   for (const echo of game.echoes) {
     if (echo.phase === 'rise') drawEcho(ctx, game, echo);
   }
@@ -172,19 +171,6 @@ function drawEcho(ctx, game, echo) {
   }
 }
 
-function drawPrediction(ctx, game) {
-  const ghost = predictEcho(game);
-  const crowded = game.echoes.some((echo) => Math.abs(echo.x - ghost.x) < 20 && Math.abs(echo.y - ghost.y) < 16);
-  if (crowded) return;
-  ctx.save();
-  ctx.strokeStyle = 'rgba(184, 255, 240, 0.35)';
-  ctx.setLineDash([3, 6]);
-  ctx.lineWidth = 1;
-  roundRect(ctx, ghost.x, ghost.y, ghost.w, ghost.h, 5);
-  ctx.stroke();
-  ctx.restore();
-}
-
 function drawExit(ctx, game) {
   const gate = game.exit;
   const pulse = 0.55 + Math.sin(game.time * 3) * 0.2;
@@ -270,7 +256,7 @@ function drawHud(ctx, game) {
   ctx.fillText(`${Number.isInteger(game.levelIndex) ? `${game.levelIndex + 1} / 3` : '练习'}  ${game.level.title} · ${game.level.subtitle}`, 24, 18);
   ctx.font = `12px ${FONT}`;
   ctx.fillStyle = '#b7e4dc';
-  ctx.fillText(`←→ 移动 · 空格 跳跃 · R 重开${game.level.anchor ? ' · E 锚定脚下回声' : ''}    回声：0.7 秒成形 / 5 秒消失 / 最多 4 块`, 24, 40);
+  ctx.fillText(`←→ 移动 · 空格 跳跃 · R 重开${game.level.anchor ? ' · E 锚定脚下回声' : ''}    回声：${ECHO.rise} 秒成形 / ${ECHO.solid} 秒消失 / 最多 ${ECHO.maxAlive} 块`, 24, 40);
 
   const seconds = Math.ceil(game.timeLeft);
   ctx.textAlign = 'right';
