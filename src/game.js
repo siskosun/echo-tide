@@ -1,4 +1,6 @@
 /** Echo Tide / 叠影潮 — headless rules for the one-screen prototype. */
+import { LEVELS } from './levels.js';
+export { LEVELS } from './levels.js';
 
 export const WORLD = { w: 960, h: 540 };
 
@@ -45,8 +47,20 @@ export function maxJumpHeight() {
 }
 
 export function createGame(options = {}) {
-  const start = PLATFORMS[0];
+  const levelIndex = options.level === 'classic' ? 'classic' : clamp(Math.trunc(options.level || 0), 0, LEVELS.length - 1);
+  const level = levelIndex === 'classic' ? {
+    title: '初潮', subtitle: '原始练习场', hint: '朝右落地，等待回声成形。',
+    platforms: PLATFORMS, exit: EXIT, spawn: { ...SPAWN, facing: 1 }, anchor: false,
+  } : LEVELS[levelIndex];
+  const start = level.platforms[0];
   return {
+    levelIndex,
+    level,
+    anchorId: null,
+    prevAnchor: false,
+    objectiveCollected: !level.objective,
+    notice: '',
+    noticeTime: 0,
     status: 'playing',
     reason: null,
     time: 0,
@@ -60,16 +74,16 @@ export function createGame(options = {}) {
     jumpHeld: false,
     runGrace: 0,
     events: [],
-    stats: { stamps: 0, echoLandings: 0 },
-    exit: { ...EXIT },
-    platforms: PLATFORMS.map((platform) => ({ ...platform })),
+    stats: { stamps: 0, echoLandings: 0, anchors: 0, leftStamps: 0, rightStamps: 0 },
+    exit: { ...level.exit },
+    platforms: level.platforms.map((platform) => ({ ...platform })),
     echoes: [],
     player: {
-      x: SPAWN.x,
-      y: SPAWN.y,
+      x: level.spawn.x,
+      y: start.y - PLAYER.h,
       vx: 0,
       vy: 0,
-      facing: 1,
+      facing: level.spawn.facing,
       grounded: true,
       supportId: start.id,
     },
@@ -84,15 +98,17 @@ export function playerRect(player) {
   return { x: player.x, y: player.y, w: PLAYER.w, h: PLAYER.h };
 }
 
-export function echoRect(centerX, surfaceTop, facing) {
+export function echoRect(centerX, surfaceTop, facing, platforms = PLATFORMS) {
   let x = centerX + facing * ECHO.shiftX - ECHO.w / 2;
   let y = surfaceTop + ECHO.shiftY;
   x = clamp(x, 18, WORLD.w - ECHO.w - 18);
   y = clamp(y, 48, KILL_Y - 70);
   for (let i = 0; i < 6; i += 1) {
-    const hit = PLATFORMS.find((platform) => overlaps({ x, y, w: ECHO.w, h: ECHO.h }, inflate(platform, 4)));
+    const hit = platforms.find((platform) => overlaps({ x, y, w: ECHO.w, h: ECHO.h }, inflate(platform, 4)));
     if (!hit) break;
-    y = hit.y - ECHO.h - 12;
+    // Join a stone ledge at its surface instead of silently adding jump height.
+    y = hit.y;
+    break;
   }
   return {
     x: clamp(x, 18, WORLD.w - ECHO.w - 18),
@@ -108,7 +124,7 @@ export function predictEcho(game) {
   const surfaceTop = player.grounded
     ? supportTop(game, player.supportId) ?? player.y + PLAYER.h
     : player.y + PLAYER.h;
-  return echoRect(player.x + PLAYER.w / 2, surfaceTop, player.facing);
+  return echoRect(player.x + PLAYER.w / 2, surfaceTop, player.facing, game.platforms);
 }
 
 export function solidRects(game) {
@@ -120,12 +136,16 @@ export function solidRects(game) {
 }
 
 export function update(game, input = {}, dt = 1 / 60) {
-  if (input.restart) return createGame({ echoes: game.echoesEnabled });
+  game.events = [];
+  if (input.restart) return createGame({ echoes: game.echoesEnabled, level: game.levelIndex });
+  if (input.next && game.status === 'won' && Number.isInteger(game.levelIndex) && game.levelIndex < LEVELS.length - 1) {
+    return createGame({ echoes: game.echoesEnabled, level: game.levelIndex + 1 });
+  }
 
   dt = clamp(dt, 0, 1 / 20);
   if (dt === 0 || game.status !== 'playing') return game;
 
-  game.events = [];
+  game.noticeTime = Math.max(0, game.noticeTime - dt);
   game.time += dt;
   game.timeLeft = Math.max(0, game.timeLeft - dt);
   if (game.timeLeft <= 0) {
@@ -133,6 +153,8 @@ export function update(game, input = {}, dt = 1 / 60) {
   }
 
   const player = game.player;
+  if (input.anchor && !game.prevAnchor) toggleAnchor(game);
+  game.prevAnchor = !!input.anchor;
   const startedGrounded = player.grounded;
   const jumpDown = !!input.jump;
   const jumpPressed = jumpDown && !game.prevJump;
@@ -214,7 +236,13 @@ export function update(game, input = {}, dt = 1 / 60) {
 
   advanceEchoes(game, dt);
 
-  if (overlaps(playerRect(player), game.exit)) {
+  if (!game.objectiveCollected && overlaps(playerRect(player), game.level.objective)) {
+    game.objectiveCollected = true;
+    game.events.push({ type: 'collect' });
+    notify(game, game.levelIndex === 0 ? '潮灯已点亮 · 朝右造路！' : '核心已取得 · 返回右侧出口！');
+  }
+
+  if (overlaps(playerRect(player), game.exit) && game.objectiveCollected) {
     game.status = 'won';
     game.reason = 'exit';
     game.events.push({ type: 'win' });
@@ -226,13 +254,16 @@ export function update(game, input = {}, dt = 1 / 60) {
 }
 
 function stamp(game, player, surfaceTop) {
-  const rect = echoRect(player.x + PLAYER.w / 2, surfaceTop, player.facing);
+  const rect = echoRect(player.x + PLAYER.w / 2, surfaceTop, player.facing, game.platforms);
+  game.stats[player.facing < 0 ? 'leftStamps' : 'rightStamps'] += 1;
   const existing = game.echoes.find((echo) => (
     echo.phase !== 'sink'
     && Math.abs(echo.x - rect.x) < 28
     && Math.abs(echo.y - rect.y) < 22
   ));
   if (existing) {
+    // A retained bridge must never move or become intangible on a repeat stamp.
+    if (existing.id === game.anchorId) return;
     existing.x = rect.x;
     existing.y = rect.y;
     existing.phase = 'rise';
@@ -255,7 +286,7 @@ function stamp(game, player, surfaceTop) {
 
   const risingOrSolid = game.echoes.filter((item) => item.phase !== 'sink');
   if (risingOrSolid.length > ECHO.maxAlive) {
-    const oldest = risingOrSolid[0];
+    const oldest = risingOrSolid.find((item) => item.id !== game.anchorId);
     oldest.phase = 'sink';
     oldest.age = 0;
     game.events.push({ type: 'sink', id: oldest.id, forced: true });
@@ -266,7 +297,7 @@ function advanceEchoes(game, dt) {
   const kept = [];
   for (const echo of game.echoes) {
     const before = echo.phase;
-    echo.age += dt;
+    if (echo.id !== game.anchorId) echo.age += dt;
     let guard = 0;
     while (echo.age >= phaseTime(echo.phase) && guard < 4) {
       echo.age -= phaseTime(echo.phase);
@@ -284,6 +315,25 @@ function advanceEchoes(game, dt) {
     kept.push(echo);
   }
   game.echoes = kept;
+}
+
+function toggleAnchor(game) {
+  if (!game.level.anchor) return;
+  const echo = game.player.grounded && game.echoes.find((item) => item.id === game.player.supportId && item.phase === 'solid');
+  if (!echo) {
+    notify(game, '站在实心回声上按 E 锚定');
+    return;
+  }
+  const old = game.echoes.find((item) => item.id === game.anchorId);
+  game.anchorId = game.anchorId === echo.id ? null : echo.id;
+  if (game.anchorId) game.stats.anchors += 1;
+  notify(game, game.anchorId ? (old ? `锚已转移 · 旧平台余 ${(ECHO.solid - old.age).toFixed(1)} 秒` : '已锚定 · 此平台暂停消失') : `已松锚 · 余 ${(ECHO.solid - echo.age).toFixed(1)} 秒`);
+  game.events.push({ type: 'anchor' });
+}
+
+function notify(game, message) {
+  game.notice = message;
+  game.noticeTime = 3;
 }
 
 function phaseTime(phase) {

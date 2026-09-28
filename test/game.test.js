@@ -7,13 +7,15 @@ import {
   ECHO,
   PLAYER,
   PLATFORMS,
-  createGame,
+  createGame as createBaseGame,
   maxJumpHeight,
   update,
 } from '../src/game.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dt = 1 / 60;
+// Preserve coverage of the original experiment's movement and practice route.
+const createGame = (options = {}) => createBaseGame({ ...options, level: 'classic' });
 
 function hop(game) {
   let next = update(game, { jump: true }, dt);

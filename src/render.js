@@ -29,6 +29,7 @@ export function draw(ctx, game) {
     if (echo.phase !== 'rise') drawEcho(ctx, game, echo);
   }
   drawExit(ctx, game);
+  drawObjective(ctx, game);
   drawSigns(ctx, game);
   drawPlayer(ctx, game);
   drawMotes(ctx);
@@ -160,6 +161,14 @@ function drawEcho(ctx, game, echo) {
     ctx.fillRect(echo.x, echo.y - 8, echo.w, 3);
     ctx.fillStyle = remain < 0.35 ? '#ffb089' : '#9ef6df';
     ctx.fillRect(echo.x, echo.y - 8, echo.w * remain, 3);
+    label(ctx, echo.x + echo.w / 2, echo.y - 14,
+      echo.id === game.anchorId ? '⚓ 已锚定 · E 松开' : `${(ECHO.solid - echo.age).toFixed(1)} 秒`,
+      echo.id === game.anchorId ? '#ffe7b5' : '#d9fff6');
+    if (echo.id === game.anchorId) {
+      ctx.strokeStyle = '#ffe7b5';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(echo.x - 2, echo.y - 2, echo.w + 4, echo.h + 4);
+    }
   }
 }
 
@@ -187,14 +196,31 @@ function drawExit(ctx, game) {
   ctx.fillRect(gate.x, gate.y, gate.w, 6);
   ctx.fillStyle = `rgba(255, 236, 196, ${pulse})`;
   ctx.fillRect(gate.x + 10, gate.y + 12, gate.w - 20, gate.h - 18);
-  label(ctx, gate.x + gate.w / 2, gate.y - 18, '出口 EXIT', '#ffe7b5');
+  label(ctx, gate.x + gate.w / 2, gate.y - 8, game.objectiveCollected ? '出口' : '出口 · 未开启', '#ffe7b5');
+  if (!game.objectiveCollected) {
+    ctx.fillStyle = '#173e44';
+    ctx.fillRect(gate.x + 6, gate.y + 6, gate.w - 12, gate.h - 6);
+    label(ctx, gate.x + gate.w / 2, gate.y + 40, '待取物', '#ffe7b5');
+  }
 }
 
 function drawSigns(ctx, game) {
-  const mid = game.platforms.find((platform) => platform.id === 'mid');
-  const waiting = !game.echoes.some((echo) => echo.phase !== 'rise' || echo.age > 0.2);
-  if (!mid || !waiting || game.stats.echoLandings > 0) return;
-  label(ctx, mid.x + mid.w / 2, mid.y - 22, '在此朝右落地 · land facing right', '#d9fff6');
+  if (game.noticeTime > 0) label(ctx, WORLD.w / 2, 106, game.notice, '#ffe7b5');
+  else if (game.stats.stamps === 0) {
+    const start = game.platforms[0];
+    label(ctx, start.x + start.w / 2, start.y + 36, game.player.facing < 0 ? '← 朝左落地造路' : '朝右落地造路 →', '#d9fff6');
+  }
+}
+
+function drawObjective(ctx, game) {
+  const item = game.level.objective;
+  if (!item) return;
+  const x = item.x + item.w / 2;
+  const y = item.y + item.h / 2;
+  ctx.fillStyle = game.objectiveCollected ? '#7dd3b0' : '#ffd78a';
+  ctx.beginPath();
+  ctx.moveTo(x, y - 13); ctx.lineTo(x + 11, y); ctx.lineTo(x, y + 13); ctx.lineTo(x - 11, y); ctx.closePath(); ctx.fill();
+  label(ctx, x, item.y - 8, game.objectiveCollected ? '已取得' : item.name, '#ffe7b5');
 }
 
 function drawPlayer(ctx, game) {
@@ -241,10 +267,10 @@ function drawHud(ctx, game) {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   ctx.fillStyle = '#e7fff8';
-  ctx.fillText('←→ / A D 移动 move    空格 / W / ↑ 跳跃 jump    R 重开 restart', 24, 18);
+  ctx.fillText(`${Number.isInteger(game.levelIndex) ? `${game.levelIndex + 1} / 3` : '练习'}  ${game.level.title} · ${game.level.subtitle}`, 24, 18);
   ctx.font = `12px ${FONT}`;
   ctx.fillStyle = '#b7e4dc';
-  ctx.fillText('落地后回声延迟升起成平台，再下沉。请面朝出口。  Landings stamp an echo that rises, then sinks. Face the exit.', 24, 40);
+  ctx.fillText(`←→ 移动 · 空格 跳跃 · R 重开${game.level.anchor ? ' · E 锚定脚下回声' : ''}    回声：0.7 秒成形 / 5 秒消失 / 最多 4 块`, 24, 40);
 
   const seconds = Math.ceil(game.timeLeft);
   ctx.textAlign = 'right';
@@ -263,8 +289,9 @@ function drawOverlay(ctx, game) {
   ctx.stroke();
 
   const won = game.status === 'won';
-  const title = won ? '抵达出口' : game.reason === 'timeout' ? '潮汐退尽' : '坠入潮底';
-  const sub = won ? 'You reached the exit' : game.reason === 'timeout' ? 'The tide ran out' : 'Fell into the tide';
+  const final = game.levelIndex === 2;
+  const title = won ? (final ? '借潮归航 · 三关完成' : `${game.level.title} · 完成`) : game.reason === 'timeout' ? '潮汐退尽' : '坠入潮底';
+  const sub = won ? `回声落脚 ${game.stats.echoLandings} 次 · 锚定 ${game.stats.anchors} 次` : '你的路线可以重来';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   ctx.font = `28px ${FONT}`;
@@ -275,7 +302,7 @@ function drawOverlay(ctx, game) {
   ctx.fillText(sub, WORLD.w / 2, 248);
   ctx.font = `14px ${FONT}`;
   ctx.fillStyle = '#9ec7c0';
-  ctx.fillText('按 R 或点击重开   ·   Press R or click to restart', WORLD.w / 2, 292);
+  ctx.fillText(won ? (final ? 'R 重试本关 · 关卡菜单可重新挑战' : 'Enter 下一关 · R 重试本关') : 'R / Enter / 点击画面 · 重试本关', WORLD.w / 2, 292);
 }
 
 function drawMotes(ctx) {

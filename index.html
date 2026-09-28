@@ -26,6 +26,10 @@
         padding: 28px 16px 40px;
       }
       .wrap { width: min(960px, 100%); }
+      .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+      select, button { font: inherit; color: var(--ink); background: #173e44; border: 1px solid #477b78; border-radius: 6px; padding: 9px 12px; }
+      button { cursor: pointer; }
+      [hidden] { display: none !important; }
       h1 {
         font-size: 1.35rem;
         font-weight: 640;
@@ -60,8 +64,11 @@
     <div class="wrap">
       <h1>Echo Tide <span>/ 叠影潮</span></h1>
       <p class="lede">用落下的回声铺一条会升起、再沉没的路。 Build a path from landings that rise, then sink.</p>
-      <canvas id="game" width="960" height="540" tabindex="0" aria-label="Echo Tide game canvas. Move with arrows or WASD, jump with space."></canvas>
-      <p class="foot">键盘 Keyboard：←→ / A D 移动 · 空格 Space / W / ↑ 跳跃 · R 重开 restart。先跳上中间石台，面朝出口落地，等回声变成实心再继续。</p>
+      <div class="toolbar"><label for="room">关卡</label><select id="room"><option value="0">01 折返接力</option><option value="1">02 留一条退路</option><option value="2">03 借路归航</option></select><button id="restart" type="button">重试本关</button><button id="next" type="button" hidden>下一关 →</button></div>
+      <canvas id="game" width="960" height="540" tabindex="0" aria-label="叠影潮游戏。方向键或 AD 移动，空格跳跃，E 锚定，R 重开。"></canvas>
+      <p id="status" class="foot" role="status" aria-live="polite"></p>
+      <p id="hint" class="foot"></p>
+      <p class="foot">键盘：←→ / A D 移动 · 空格 Space / W / ↑ 跳跃 · E 锚定/松开脚下回声 · R 重开 · 通关后 Enter 下一关。最多锚定一块；换锚时旧平台恢复剩余计时。切换标签页自动暂停。</p>
     </div>
     <script type="module" src="/src/main.js"></script>
   </body>
