@@ -1,3 +1,4 @@
+import './touch_controls.test.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
