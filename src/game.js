@@ -42,6 +42,10 @@ export const SURF = Object.freeze({
   extraSpeed: 470,
   centerFraction: 0.27,
   centerToleranceMax: 36,
+  // The platform moves on a visible one-dimensional rail only during its
+  // creating jump. Its start and full travel range are disclosed pre-jump.
+  railTravel: 40,
+  railPeriod: 1.28,
 });
 
 export const TIME_LIMIT = 90;
@@ -93,7 +97,8 @@ export function createGame(options = {}) {
     echoMode: levelIndex === 'classic' ? 'legacy' : 'flow',
     challengeEnabled: flowCampaign && options.challenge === true,
     surfEnabled: flowCampaign && options.surf === true,
-    // One earned dash at a time; only a centered same-jump bridge catch refills.
+    // One burst per flight. Any safe landing restores it for the next flight;
+    // precision is a separate optional chain, not a dash paywall.
     surgeCharge: 1,
     dashTime: 0,
     dashDirection: 0,
@@ -286,6 +291,38 @@ export function canPlaceFlowEcho(game, rect) {
     && horizontalOverlap(rect, echo) > Math.min(rect.w, echo.w) * 0.55);
 }
 
+/**
+ * Deterministic, forward-and-back rail: first position, direction and travel
+ * distance are visible on the ground. Only some challenge bridges move. The
+ * tutorial, fixed stones, original comparison mode and world-edge cases stay
+ * still. There is no hidden choice after takeoff or platform teleportation.
+ */
+export function echoMotionPlan(game, rect, facing = game.player.facing) {
+  if (!game.surfEnabled || !game.challengeEnabled || !game.route?.revealed
+      || !rect || rect.role === 'stone' || rect.w > AIR_BRIDGE.w
+      || game.nextId % 2 !== 0) return null;
+  const endX = rect.x + facing * SURF.railTravel;
+  if (endX < 18 || endX + rect.w > WORLD.w - 18) return null;
+  return {
+    startX: rect.x, facing, travel: SURF.railTravel,
+    period: SURF.railPeriod, elapsed: 0, active: true,
+  };
+}
+
+/** Horizontal offset is zero at launch and bounded for the whole flight. */
+export function echoMotionX(motion, elapsed = motion.elapsed) {
+  return motion.startX + motion.facing * motion.travel
+    * (1 - Math.cos(2 * Math.PI * elapsed / motion.period)) / 2;
+}
+
+function advanceFlyingEcho(game, dt) {
+  const echo = game.echoes.find(item => item.id === game.flightBridgeId
+    && item.phase === 'solid' && item.motion?.active);
+  if (!echo) return;
+  echo.motion.elapsed += dt;
+  echo.x = echoMotionX(echo.motion);
+}
+
 /** Stamp the exact target the player already saw, immediately on takeoff. */
 function createAirborneBridge(game, forecast) {
   const { options, selected, target, blocked } = forecast ?? airborneForecast(game);
@@ -421,6 +458,9 @@ export function update(game, input = {}, dt = 1 / 60) {
   player.x += player.vx * dt + game.dashDirection * SURF.extraSpeed * burstDt;
   game.dashTime = Math.max(0, game.dashTime - dt);
   player.x = clamp(player.x, 10, WORLD.w - PLAYER.w - 10);
+  // Shift the collision surface BEFORE this frame's descending collision test.
+  // The moving platform never replaces the player's earned takeoff support.
+  advanceFlyingEcho(game, dt);
 
   player.vy = Math.min(PHYSICS.maxFall, player.vy + PHYSICS.gravity * dt);
   const prevBottom = player.y + PLAYER.h;
@@ -450,8 +490,17 @@ export function update(game, input = {}, dt = 1 / 60) {
     game.airTime += dt;
   } else if (!startedGrounded && landedOn) {
     if (game.surfEnabled) {
-      // Reward an earned new bridge caught centrally on THIS flight only.
-      // Returning to old supports cannot farm infinite dash charges.
+      // Catching the live rail freezes it at the ACTUAL collision position.
+      // This preserves ordinary grounded movement and avoids being carried
+      // off a safe support without a new player action.
+      const captured = game.echoes.find(echo => echo.id === landedOn.id);
+      if (captured?.motion?.active) {
+        captured.motion.active = false;
+        game.events.push({ type: 'rail_caught', id: captured.id });
+      }
+      // Every real safe landing restores the next jump's air burst.
+      // Precise catches still build a separate optional skill chain.
+      game.surgeCharge = 1;
       const earned = game.echoes.find(echo => echo.id === game.flightBridgeId
         && echo.phase === 'solid');
       const tolerance = earned
@@ -459,12 +508,11 @@ export function update(game, input = {}, dt = 1 / 60) {
       const offCenter = earned ? Math.abs(
         player.x + PLAYER.w / 2 - (earned.x + earned.w / 2)) : Infinity;
       if (earned && landedOn.id === earned.id && offCenter <= tolerance) {
-        game.surgeCharge = 1;
         game.precisionChain += 1;
         game.stats.preciseLandings += 1;
         game.stats.bestChain = Math.max(game.stats.bestChain, game.precisionChain);
         game.events.push({ type: 'precision', id: earned.id, chain: game.precisionChain });
-        notify(game, `精准落脚 · 潮能已恢复${game.precisionChain > 1 ? ` · 连续 ${game.precisionChain}` : ''}`);
+        notify(game, `精准落脚 · 连击 ${game.precisionChain}`);
       } else {
         game.precisionChain = 0;
       }
@@ -573,6 +621,8 @@ function stamp(game, player, surfaceTop, overrideRect = null, facing = player.fa
     ...rect,
     phase,
     age: 0,
+    ...(overrideRect && game.echoMode === 'flow'
+      ? { motion: echoMotionPlan(game, rect, facing) } : {}),
   };
   game.nextId += 1;
   game.echoes.push(echo);
