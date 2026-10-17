@@ -139,8 +139,8 @@ test('the actual canvas labels the skill loop and the available surge', () => {
   assert.ok(labels.some(s => s.includes('潮能○')));
 });
 
-function startSurfChallenge() {
-  const game = createGame({ level: 1, seed: 3, challenge: true, surf: true });
+function startSurfChallenge(seed = 3) {
+  const game = createGame({ level: 1, seed, challenge: true, surf: true });
   for (let i = 0; i < 90 && !game.route.revealed; i++) {
     tick(game, {right: true, jump: i < 18});
     assert.equal(game.status, 'playing');
@@ -248,4 +248,44 @@ test('moving rail is not a collision shortcut or delayed midair random decision'
   assert.ok(!solidRects(game).some(platform => platform.id === id),
     'missed moving echo cannot persist as a banked next jump');
   assert.ok(game.echoes.filter(e => e.motion?.active).length <= 1);
+});
+
+test('input-only chase: a normal near jump works and a timed dash catches the far moving rail', () => {
+  const cases = {};
+  for (let seed = 0; seed < 40 && (!cases.near || !cases.far); seed++) {
+    const game = startSurfChallenge(seed);
+    const plan = airborneForecast(game);
+    if (plan.target?.role === 'echo' && echoMotionPlan(game, plan.target)) {
+      cases[plan.selected] ??= seed;
+    }
+  }
+  assert.ok(Number.isInteger(cases.near));
+  assert.ok(Number.isInteger(cases.far));
+
+  function follow(seed, dash) {
+    const game = startSurfChallenge(seed);
+    const forecast = airborneForecast(game);
+    tick(game, { right: true, jump: true });
+    const id = game.flightBridgeId;
+    assert.ok(id, 'a fresh moving target must exist from takeoff');
+    let touchedNew = false;
+    for (let frame = 0; frame < 83 && game.status === 'playing'; frame++) {
+      tick(game, { right: true, jump: frame < 20, dash: dash && frame === 12 });
+      if (game.player.grounded) {
+        touchedNew = game.player.supportId === id;
+        break;
+      }
+    }
+    return { touchedNew, game, forecast };
+  }
+  const near = follow(cases.near, false);
+  assert.equal(near.touchedNew, true,
+    'ordinary input-only forward jump must catch the near moving target');
+  const far = follow(cases.far, true);
+  assert.equal(far.game.stats.dashes, 1);
+  assert.equal(far.touchedNew, true,
+    'a player-timed single dash must catch the far moving target');
+  const farNoDash = follow(cases.far, false);
+  assert.equal(farNoDash.touchedNew, false,
+    'the same right-only policy without dash should not trivially solve the far moving catch');
 });
