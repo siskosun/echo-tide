@@ -309,7 +309,9 @@ function drawHud(ctx, game) {
   ctx.fillStyle = '#b7e4dc';
   ctx.fillText(game.echoMode === 'flow'
     ? (game.challengeEnabled && game.route?.revealed
-      ? `挑战：起跳前目标已确定 · 瞄准落点再跳 · 本跳新桥须本跳接住`
+      ? ((game.airborneCue?.phase === 'blocked' || (game.player.grounded && airborneForecast(game).blocked))
+        ? '挑战：当前站位无法造桥 · 调整位置或转身'
+        : '挑战：目标已确定 · 瞄准落点再跳 · 新桥须本跳接住')
       : game.route?.revealed
         ? `潮印在${game.route.side === 'left' ? '左岸 ←' : '右岸 →'} · 起跳即成桥 · E 锚定 / R 重试`
         : game.challengeEnabled
