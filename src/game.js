@@ -156,7 +156,7 @@ export function airborneCandidates(game) {
     ? supportTop(game, player.supportId) ?? player.y + PLAYER.h
     : player.y + PLAYER.h;
   const centerX = player.x + PLAYER.w / 2;
-  const near = echoRect(centerX, surfaceTop, player.facing, game.platforms,
+  let near = echoRect(centerX, surfaceTop, player.facing, game.platforms,
     { width: AIR_BRIDGE.w, shiftX: AIR_BRIDGE.near });
   let far = echoRect(centerX, surfaceTop, player.facing, game.platforms,
     { width: AIR_BRIDGE.w, shiftX: AIR_BRIDGE.far });
