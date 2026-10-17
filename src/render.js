@@ -1,4 +1,4 @@
-import { ECHO, KILL_Y, WORLD, predictEcho } from './game.js';
+import { ECHO, KILL_Y, WORLD, predictEcho, airborneCandidates } from './game.js';
 
 const FONT = '"WenQuanYi Micro Hei", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif';
 
@@ -27,7 +27,8 @@ export function draw(ctx, game) {
   for (const echo of game.echoes) {
     if (echo.phase !== 'rise') drawEcho(ctx, game, echo);
   }
-  if (game.echoMode === 'flow' && game.status === 'playing' && game.player.grounded && game.echoesEnabled) {
+  if (game.echoMode === 'flow' && game.status === 'playing'
+      && (game.player.grounded || game.pendingEcho) && game.echoesEnabled) {
     drawLaunchForecast(ctx, game);
   }
   drawExit(ctx, game);
@@ -116,6 +117,24 @@ function drawPlatform(ctx, platform) {
 }
 
 function drawLaunchForecast(ctx, game) {
+  if (game.challengeEnabled && game.route?.revealed) {
+    const options = game.pendingEcho?.options ?? airborneCandidates(game);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(253, 236, 186, 0.77)';
+    ctx.fillStyle = 'rgba(255, 231, 181, 0.07)';
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([6, 6]);
+    for (const rect of [options.near, options.far]) {
+      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+      ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+    }
+    ctx.restore();
+    const leftmost = Math.min(options.near.x, options.far.x);
+    const upper = Math.min(options.near.y, options.far.y);
+    label(ctx, leftmost + 112, upper - 20,
+      game.pendingEcho ? '空中判位 · 看实体桥修正方向' : '下一跳：候选落点二选一', '#ffe7b5');
+    return;
+  }
   const rect = predictEcho(game);
   ctx.save();
   ctx.strokeStyle = '#ffe7b5';
@@ -273,9 +292,11 @@ function drawHud(ctx, game) {
   ctx.font = `12px ${FONT}`;
   ctx.fillStyle = '#b7e4dc';
   ctx.fillText(game.echoMode === 'flow'
-    ? (game.route?.revealed
-      ? `潮印在${game.route.side === 'left' ? '左岸 ←' : '右岸 →'} · 起跳即成桥 · E 锚定 / R 重试`
-      : '起跳即成桥 · 首次落上回声才会揭示本局潮印位置')
+    ? (game.challengeEnabled && game.route?.revealed
+      ? `挑战：起跳后二选一窄桥，空中修正方向 · 潮印${game.route.side === 'left' ? '左岸' : '右岸'}`
+      : game.route?.revealed
+        ? `潮印在${game.route.side === 'left' ? '左岸 ←' : '右岸 →'} · 起跳即成桥 · E 锚定 / R 重试`
+        : '起跳即成桥 · 首次落上回声才会揭示本局潮印位置')
     : `←→ 移动 · 空格 跳跃 · R 重开${game.level.anchor ? ' · E 锚定脚下回声' : ''}    回声：${ECHO.rise} 秒成形 / ${ECHO.solid} 秒消失 / 最多 ${ECHO.maxAlive} 块`, 24, 40);
 
   const seconds = Math.ceil(game.timeLeft);
