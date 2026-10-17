@@ -1,8 +1,8 @@
 /** Predictable tide drift for the experimental flow mechanic, no RNG. */
 export const TIDE = Object.freeze({
   period: 3.6,
-  amplitude: 24,
-  baseShift: -18,
+  amplitude: 18,
+  baseShift: 0,
 });
 
 /** Horizontal drift, bounded and continuous through tide phase cycles. */
