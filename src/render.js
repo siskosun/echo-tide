@@ -1,4 +1,4 @@
-import { ECHO, KILL_Y, WORLD, predictEcho, airborneCandidates, hasReachableStone } from './game.js';
+import { ECHO, KILL_Y, WORLD, predictEcho, airborneCandidates } from './game.js';
 
 const FONT = '"WenQuanYi Micro Hei", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif';
 
@@ -28,7 +28,7 @@ export function draw(ctx, game) {
     if (echo.phase !== 'rise') drawEcho(ctx, game, echo);
   }
   if (game.echoMode === 'flow' && game.status === 'playing'
-      && (game.player.grounded || game.pendingEcho) && game.echoesEnabled) {
+      && (game.player.grounded || game.pendingEcho || game.airborneCue) && game.echoesEnabled) {
     drawLaunchForecast(ctx, game);
   }
   drawExit(ctx, game);
@@ -118,27 +118,35 @@ function drawPlatform(ctx, platform) {
 
 function drawLaunchForecast(ctx, game) {
   if (game.challengeEnabled && game.route?.revealed) {
-    if (game.player.grounded && hasReachableStone(game)) {
-      // A fixed stone is already a safe known target: do not draw false bridges.
-      label(ctx, game.player.x + 14, game.player.y - 20,
-        '前方有固定石台 · 直接跳上去', '#ffe7b5');
-      return;
-    }
-    const options = game.pendingEcho?.options ?? airborneCandidates(game);
-    ctx.save();
-    ctx.strokeStyle = 'rgba(253, 236, 186, 0.77)';
-    ctx.fillStyle = 'rgba(255, 231, 181, 0.07)';
-    ctx.lineWidth = 1.6;
-    ctx.setLineDash([6, 6]);
-    for (const rect of [options.near, options.far]) {
-      ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+    // Ground: fresh planning positions. Air: the takeoff contract stays
+    // anchored to the SAME world coordinates until an actual landing.
+    const cue = game.airborneCue;
+    const options = cue?.options ?? airborneCandidates(game);
+    for (const [side, rect] of [['near', options.near], ['far', options.far]]) {
+      const stone = rect.role === 'stone';
+      const faded = cue?.phase === 'revealed' && cue.selected !== side;
+      const confirmed = cue?.phase === 'revealed' && cue.selected === side;
+      ctx.save();
+      ctx.globalAlpha = faded ? 0.22 : 1;
+      ctx.strokeStyle = stone ? '#9af2e2' : confirmed ? '#e8ffad' : '#ffe7b5';
+      ctx.fillStyle = stone ? 'rgba(56, 148, 133, 0.06)' : 'rgba(255, 231, 181, 0.04)';
+      ctx.lineWidth = confirmed ? 3 : 2;
+      ctx.setLineDash(stone ? [] : [6, 6]);
+      if (!stone) ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
       ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+      ctx.restore();
     }
-    ctx.restore();
-    const leftmost = Math.min(options.near.x, options.far.x);
-    const upper = Math.min(options.near.y, options.far.y);
-    label(ctx, leftmost + 112, upper - 20,
-      game.pendingEcho ? '空中判位 · 看实体桥修正方向' : '下一跳：候选落点二选一', '#ffe7b5');
+    // Persistent small legend: dashed yellow = temporary; solid teal = stone.
+    // The unused choice fades rather than disappearing midair.
+    const minY = Math.min(options.near.y, options.far.y);
+    const leftX = Math.min(options.near.x, options.far.x);
+    const msg = cue?.phase === 'revealed'
+      ? '已定桥位 · 调整方向落脚'
+      : cue?.phase === 'pending'
+        ? '即将揭晓 · 两个落点保持不变'
+        : '双候选：黄虚框=回声 · 绿实框=石台';
+    label(ctx, Math.max(155, Math.min(WORLD.w - 155, leftX + 130)), Math.max(106, minY - 24),
+      msg, '#ffe7b5');
     return;
   }
   const rect = predictEcho(game);
@@ -299,7 +307,7 @@ function drawHud(ctx, game) {
   ctx.fillStyle = '#b7e4dc';
   ctx.fillText(game.echoMode === 'flow'
     ? (game.challengeEnabled && game.route?.revealed
-      ? `挑战：起跳后二选一窄桥，空中修正方向 · 潮印${game.route.side === 'left' ? '左岸' : '右岸'}`
+      ? `挑战：每跳双候选 · 黄虚框是回声 / 绿实框是石台 · 空中确认落点`
       : game.route?.revealed
         ? `潮印在${game.route.side === 'left' ? '左岸 ←' : '右岸 →'} · 起跳即成桥 · E 锚定 / R 重试`
         : '起跳即成桥 · 首次落上回声才会揭示本局潮印位置')
