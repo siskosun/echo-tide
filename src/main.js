@@ -16,7 +16,7 @@ function newRouteSeed() {
 }
 
 const keys = new Set();
-let game = createGame({ seed: newRouteSeed(), challenge: true });
+let game = createGame({ seed: newRouteSeed(), challenge: true, surf: true });
 let last = performance.now();
 let restartLatch = false;
 let pointerRestart = false;
@@ -25,24 +25,28 @@ let nextLatch = false;
 let accumulator = 0;
 const roomSelect = document.getElementById('room');
 const difficultySelect = document.getElementById('difficulty');
+const styleSelect = document.getElementById('style');
 const nextButton = document.getElementById('next');
 const status = document.getElementById('status');
 const hint = document.getElementById('hint');
 let uiKey = '';
 let pointerNext = false;
 let buttonRestart = false;
-function restartForMode() {
+function restartForMode({ keepSeed = false } = {}) {
   game = createGame({
     level: Number(roomSelect.value),
-    seed: newRouteSeed(),
+    // Same room/seed when comparing the surf and original controls.
+    seed: keepSeed ? game.seed : newRouteSeed(),
     challenge: difficultySelect.value === 'hard',
+    surf: styleSelect.value === 'surf',
   });
   uiKey = '';
   keys.clear();
   canvas.focus();
 }
-roomSelect.addEventListener('change', restartForMode);
-difficultySelect.addEventListener('change', restartForMode);
+roomSelect.addEventListener('change', () => restartForMode());
+difficultySelect.addEventListener('change', () => restartForMode());
+styleSelect.addEventListener('change', () => restartForMode({ keepSeed: true }));
 document.getElementById('restart').addEventListener('click', () => { buttonRestart = true; canvas.focus(); });
 nextButton.addEventListener('click', () => { pointerNext = true; canvas.focus(); });
 
@@ -91,6 +95,7 @@ function frame(now) {
     left: held.left(),
     right: held.right(),
     jump: held.jump(),
+    dash: keys.has('ShiftLeft') || keys.has('ShiftRight') || keys.has('KeyJ'),
     restart,
     next,
     anchor: keys.has('KeyE'),
@@ -118,13 +123,16 @@ function frame(now) {
 }
 
 function syncUi() {
-  const key = `${game.levelIndex}:${game.challengeEnabled}:${game.status}:${game.objectiveCollected}:${game.route?.side ?? 'unknown'}`;
+  const key = `${game.levelIndex}:${game.challengeEnabled}:${game.surfEnabled}:${game.status}:${game.objectiveCollected}:${game.route?.side ?? 'unknown'}`;
   if (uiKey === key) return;
   uiKey = key;
   roomSelect.value = String(game.levelIndex);
-  hint.textContent = game.route?.revealed
+  styleSelect.value = game.surfEnabled ? 'surf' : 'classic';
+  const surfHint = game.surfEnabled
+    ? ' · Shift/J：空中冲刺一次；踩中新回声中央亮心可补充潮能' : '';
+  hint.textContent = (game.route?.revealed
     ? `${game.level.hint} · 本局潮印：${game.route.side === 'left' ? '左岸' : '右岸'}`
-    : game.level.hint;
+    : game.level.hint) + surfHint;
   nextButton.hidden = game.status !== 'won' || game.levelIndex === LEVELS.length - 1;
   status.textContent = game.status === 'lost' ? '坠落或超时，按 R 重试本关。' : game.status === 'won'
     ? (game.levelIndex === LEVELS.length - 1 ? '三关完成！可以从关卡菜单再次挑战。' : '本关完成！按 Enter 进入下一关。')
@@ -136,6 +144,8 @@ function syncUi() {
 function voice(events) {
   for (const event of events) {
     if (event.type === 'jump') tone(240, 0.08, 'sine', 0.03);
+    if (event.type === 'dash') tone(470, 0.11, 'sawtooth', 0.025);
+    if (event.type === 'precision') tone(860, 0.12, 'sine', 0.035);
     if (event.type === 'stamp') tone(360, 0.12, 'triangle', 0.035);
     if (event.type === 'solid') tone(540, 0.16, 'sine', 0.04);
     if (event.type === 'anchor') tone(430, 0.18, 'triangle', 0.04);
