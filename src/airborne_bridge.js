@@ -3,6 +3,7 @@ export const AIR_BRIDGE = Object.freeze({
   w: 104,
   near: 42,
   far: 147,
+  backtrackWhenBlocked: 72,
   revealAfter: 0.16,
   maxCandidates: 2,
 });
