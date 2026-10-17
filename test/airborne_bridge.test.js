@@ -131,20 +131,94 @@ test('standard mode retains full-width instant solid bridges and no pending roll
   assert.equal(tick(createGame({ level: 0, challenge: true }), { restart: true }).challengeEnabled, true);
 });
 
-test('a directly jumpable stone is used instead of overlaying confusing extra bridges', () => {
-  let game = firstEchoLanding(0, 5);
+test('existing stone is one visible choice, without the previous disappearing two-box preview', () => {
+  const seed = branchSeeds(0).far;
+  let game = firstEchoLanding(0, seed);
   assert.equal(hasReachableStone(game), true);
+  const candidates = airborneCandidates(game);
+  assert.equal(candidates.near.role, 'echo');
+  assert.equal(candidates.far.role, 'stone');
+  assert.equal(candidates.far.id, 'relay');
+  assert.ok(game.platforms.every(p => !overlaps(candidates.near, p)),
+    'the echo option must not paint a second bridge over a stone');
   const count = game.stats.stamps;
   game = tick(game, {});
   game = tick(game, { left: true, jump: true });
-  assert.equal(game.pendingEcho, null, 'a real fixed stone needs no random bridge');
-  assert.equal(game.stats.stamps, count, 'do not stamp a duplicate over the relay');
+  assert.ok(game.pendingEcho, 'the choice remains visible even when rock can be reached');
+  assert.equal(game.airborneCue.phase, 'pending');
+  assert.deepEqual(game.airborneCue.options, candidates);
+  for (let i = 0; i < 12 && game.pendingEcho; i += 1) {
+    game = tick(game, { left: true, jump: true });
+  }
+  assert.equal(game.pendingEcho, null);
+  assert.equal(game.airborneCue.phase, 'revealed');
+  assert.equal(game.airborneCue.selected, 'far');
+  assert.equal(game.stats.stamps, count, 'selecting solid stone must not stamp a duplicate bridge');
+  assert.equal(game.echoes.length, 1, 'the first teaching bridge remains untouched');
   let reached = false;
   for (let i = 0; i < 85 && game.status === 'playing'; i += 1) {
-    game = tick(game, { left: true, jump: i < 18 });
+    game = tick(game, { left: true, jump: i < 7 });
     if (game.player.supportId === 'relay') { reached = true; break; }
   }
-  assert.equal(reached, true, 'a normal real-input hop must reach the fixed relay stone');
+  assert.equal(reached, true, 'the known stone remains reachable through real input');
+  assert.equal(game.airborneCue, null, 'cue is cleared only on an actual landing');
+});
+
+test('chosen cue geometry stays fixed from takeoff through confirmation and descent', () => {
+  let game = firstEchoLanding(1, 7);
+  game = tick(game, {});
+  game = tick(game, { right: true, jump: true });
+  assert.equal(game.airborneCue?.phase, 'pending');
+  const positions = structuredClone(game.airborneCue.options);
+  let revealed = false;
+  for (let i = 0; i < 35 && !game.player.grounded; i += 1) {
+    game = tick(game, { right: i < 10, left: i >= 10, jump: i < 18 });
+    if (game.airborneCue) {
+      assert.deepEqual(game.airborneCue.options, positions,
+        'flight cue must not follow the changing player position or facing');
+      if (game.airborneCue.phase === 'revealed') {
+        revealed = true;
+        assert.equal(game.pendingEcho, null);
+      }
+    }
+  }
+  assert.equal(revealed, true, 'both landing outlines remain available after choice is revealed');
+});
+
+test('same two outlined choices are drawn before, during, and after midair reveal', () => {
+  let game = firstEchoLanding(1, 7);
+  const rects = [];
+  const labels = [];
+  const ctx = new Proxy({}, {
+    get: (_, name) => name === 'createLinearGradient'
+      ? () => ({ addColorStop() {} })
+      : name === 'strokeRect' ? (...args) => rects.push(args)
+      : name === 'fillText' ? value => labels.push(String(value))
+        : () => {},
+    set: () => true,
+  });
+  function snapshot(expected) {
+    rects.length = 0;
+    labels.length = 0;
+    draw(ctx, game);
+    for (const r of [expected.near, expected.far]) {
+      assert.ok(rects.some(x => x[0] === r.x && x[1] === r.y
+        && x[2] === r.w && x[3] === r.h),
+      'both known positions must be outlined, even when the real platform is already revealed');
+    }
+    assert.ok(!labels.some(x => x.includes('前方有固定石台 · 直接跳上去')),
+      'reverting to a conditional hidden choice is forbidden');
+  }
+  const expected = structuredClone(airborneCandidates(game));
+  snapshot(expected);
+  game = tick(game, {});
+  game = tick(game, { right: true, jump: true });
+  snapshot(expected);
+  for (let i = 0; i < 12 && game.pendingEcho; i += 1) {
+    game = tick(game, { right: i < 6, left: i >= 6, jump: true });
+  }
+  assert.equal(game.airborneCue.phase, 'revealed');
+  snapshot(expected);
 });
 
 test('actual render announces candidate positions without flashing forming labels', () => {
@@ -158,6 +232,6 @@ test('actual render announces candidate positions without flashing forming label
     set: () => true,
   });
   draw(ctx, game);
-  assert.ok(labels.some(x => x.includes('候选落点二选一')));
+  assert.ok(labels.some(x => x.includes('两个落点 · 起跳后定一个')));
   assert.ok(labels.every(x => !x.includes('显形 forming')));
 });
