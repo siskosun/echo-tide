@@ -35,6 +35,15 @@ export const ECHO = {
 // a new bridge and never a repeatable clock reset by standing in place.
 export const RECOVERY = Object.freeze({ retrySeconds: 1.8 });
 
+// Opt-in EXP-5 feel variant. A dash never changes platform generation,
+// vertical impulse, or whether a landing target is visible before takeoff.
+export const SURF = Object.freeze({
+  duration: 0.14,
+  extraSpeed: 470,
+  centerFraction: 0.27,
+  centerToleranceMax: 36,
+});
+
 export const TIME_LIMIT = 90;
 export const KILL_Y = 518;
 
@@ -83,6 +92,13 @@ export function createGame(options = {}) {
     // The classic practice route remains a frozen landing-stamp technical control.
     echoMode: levelIndex === 'classic' ? 'legacy' : 'flow',
     challengeEnabled: flowCampaign && options.challenge === true,
+    surfEnabled: flowCampaign && options.surf === true,
+    // One earned dash at a time; only a centered same-jump bridge catch refills.
+    surgeCharge: 1,
+    dashTime: 0,
+    dashDirection: 0,
+    prevDash: false,
+    precisionChain: 0,
     pendingEcho: null, // Legacy shape only: no deferred midair decision.
     airborneCue: null,
     airborneTurn: 0,
@@ -98,7 +114,8 @@ export function createGame(options = {}) {
     jumpHeld: false,
     runGrace: 0,
     events: [],
-    stats: { stamps: 0, echoLandings: 0, anchors: 0, leftStamps: 0, rightStamps: 0 },
+    stats: { stamps: 0, echoLandings: 0, anchors: 0, leftStamps: 0, rightStamps: 0,
+      dashes: 0, preciseLandings: 0, bestChain: 0 },
     exit: { ...level.exit },
     platforms: level.platforms.map((platform) => ({ ...platform })),
     echoes: [],
@@ -297,9 +314,11 @@ export function solidRects(game) {
 
 export function update(game, input = {}, dt = 1 / 60) {
   game.events = [];
-  if (input.restart) return createGame({ echoes: game.echoesEnabled, level: game.levelIndex, seed: game.seed, challenge: game.challengeEnabled });
+  if (input.restart) return createGame({ echoes: game.echoesEnabled, level: game.levelIndex,
+    seed: game.seed, challenge: game.challengeEnabled, surf: game.surfEnabled });
   if (input.next && game.status === 'won' && Number.isInteger(game.levelIndex) && game.levelIndex < LEVELS.length - 1) {
-    return createGame({ echoes: game.echoesEnabled, level: game.levelIndex + 1, seed: game.seed, challenge: game.challengeEnabled });
+    return createGame({ echoes: game.echoesEnabled, level: game.levelIndex + 1,
+      seed: game.seed, challenge: game.challengeEnabled, surf: game.surfEnabled });
   }
 
   dt = clamp(dt, 0, 1 / 20);
@@ -319,6 +338,9 @@ export function update(game, input = {}, dt = 1 / 60) {
   const jumpDown = !!input.jump;
   const jumpPressed = jumpDown && !game.prevJump;
   game.prevJump = jumpDown;
+  const dashDown = !!input.dash;
+  const dashPressed = dashDown && !game.prevDash;
+  game.prevDash = dashDown;
   // Capture the LAST rendered forecast before this frame changes facing or x.
   // Pressing direction+jump together may steer the flight, but cannot silently
   // replace the landing target the player was shown on the previous frame.
@@ -360,7 +382,7 @@ export function update(game, input = {}, dt = 1 / 60) {
         const tutorial = game.challengeEnabled && game.route && !game.route.revealed
           ? predictEcho(game) : null;
         const created = stamp(game, player, launchTop);
-        if (game.challengeEnabled) game.flightBridgeId = created;
+        if (game.challengeEnabled || game.surfEnabled) game.flightBridgeId = created;
         if (tutorial) {
           // The initial wide-bridge lesson is the only one-candidate jump.
           // Freeze this preview too, so it does not slide with the player.
@@ -383,7 +405,21 @@ export function update(game, input = {}, dt = 1 / 60) {
   }
   if (player.vy >= 0) game.jumpHeld = false;
 
-  player.x += player.vx * dt;
+  // A second deliberate input during an actual flight, never a second jump.
+  // Additive horizontal impulse lasts a fixed short time, with no vertical
+  // lift or new bridge: players may correct/overshoot, but cannot fly upward.
+  if (game.surfEnabled && dashPressed && !startedGrounded && !player.grounded
+    && game.surgeCharge > 0 && game.airTime > 0.04) {
+    game.surgeCharge = 0;
+    game.dashTime = SURF.duration;
+    game.dashDirection = input.left && !input.right ? -1
+      : input.right && !input.left ? 1 : player.facing;
+    game.stats.dashes += 1;
+    game.events.push({ type: 'dash', direction: game.dashDirection });
+  }
+  const burstDt = game.surfEnabled ? Math.min(dt, game.dashTime) : 0;
+  player.x += player.vx * dt + game.dashDirection * SURF.extraSpeed * burstDt;
+  game.dashTime = Math.max(0, game.dashTime - dt);
   player.x = clamp(player.x, 10, WORLD.w - PLAYER.w - 10);
 
   player.vy = Math.min(PHYSICS.maxFall, player.vy + PHYSICS.gravity * dt);
@@ -413,6 +449,27 @@ export function update(game, input = {}, dt = 1 / 60) {
   if (!player.grounded) {
     game.airTime += dt;
   } else if (!startedGrounded && landedOn) {
+    if (game.surfEnabled) {
+      // Reward an earned new bridge caught centrally on THIS flight only.
+      // Returning to old supports cannot farm infinite dash charges.
+      const earned = game.echoes.find(echo => echo.id === game.flightBridgeId
+        && echo.phase === 'solid');
+      const tolerance = earned
+        ? Math.min(SURF.centerToleranceMax, earned.w * SURF.centerFraction) : 0;
+      const offCenter = earned ? Math.abs(
+        player.x + PLAYER.w / 2 - (earned.x + earned.w / 2)) : Infinity;
+      if (earned && landedOn.id === earned.id && offCenter <= tolerance) {
+        game.surgeCharge = 1;
+        game.precisionChain += 1;
+        game.stats.preciseLandings += 1;
+        game.stats.bestChain = Math.max(game.stats.bestChain, game.precisionChain);
+        game.events.push({ type: 'precision', id: earned.id, chain: game.precisionChain });
+        notify(game, `精准落脚 · 潮能已恢复${game.precisionChain > 1 ? ` · 连续 ${game.precisionChain}` : ''}`);
+      } else {
+        game.precisionChain = 0;
+      }
+      game.dashTime = 0;
+    }
     // A preview is not a bridge that can be banked for the next hop:
     // only catching the just-created echo with this jump grants its lifespan.
     // An uncaught echo becomes immediately non-solid and fades out, leaving
