@@ -2,7 +2,7 @@
 export const LEVELS = [
   {
     title: '折返接力', subtitle: '先向左，才能向右', anchor: false,
-    hint: '首跳教学：起跳造宽桥，没踩中就消散。此后每跳双候选，约 0.16 秒后确定落点；本跳新桥必须本跳踩中。',
+    hint: '首跳教学：起跳造宽桥。之后每跳提前显示唯一真实落点；瞄准后再跳，新桥必须本跳接住。',
     spawn: { x: 610, facing: -1 },
     platforms: [
       { id: 'start', x: 570, y: 478, w: 360, h: 16, role: 'start' },
@@ -14,7 +14,7 @@ export const LEVELS = [
   },
   {
     title: '留一条退路', subtitle: '一枚锚，留住一段时间', anchor: true,
-    hint: '首跳造宽桥、落脚揭示潮印；此后每次起跳都有两个候选，空中确定一个。本跳没踩中的新桥会消散。可按 E 锚定。',
+    hint: '首跳造宽桥、落脚揭示潮印；此后起跳前就显示确定目标，不再空中抽签。本跳没踩中的新桥会消散。可按 E 锚定。',
     spawn: { x: 210, facing: 1 },
     platforms: [
       { id: 'start', x: 30, y: 478, w: 330, h: 16, role: 'start' },
@@ -25,7 +25,7 @@ export const LEVELS = [
   },
   {
     title: '借路归航', subtitle: '去时铺路，归时借路', anchor: true,
-    hint: '首跳造宽桥、落脚揭示核心方向；此后每次起跳都预告双候选，空中修正并在同一跳接住新桥。可保留回程锚。',
+    hint: '首跳造宽桥、落脚揭示核心方向；此后每次起跳前已确认下一落点，在同一跳接住新桥。可保留回程锚。',
     spawn: { x: 690, facing: -1 },
     platforms: [
       { id: 'start', x: 640, y: 478, w: 290, h: 16, role: 'start' },
