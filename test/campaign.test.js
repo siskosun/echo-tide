@@ -1,5 +1,5 @@
 import test from 'node:test';
-import './tide_variation.test.js';
+import './route_fork.test.js';
 import assert from 'node:assert/strict';
 import { createGame, update, ECHO, PLAYER, LEVELS, maxJumpHeight } from '../src/game.js';
 import { playRoom } from './campaign-driver.js';
@@ -22,22 +22,21 @@ test('relay room supports immediate successive jumps with no wait for forming ec
   assert.ok(game.time < 7, `continuous route took ${game.time}s`);
 });
 
-test('renderer forecasts the next launch point before a jump and displays the actual forming bridge', () => {
-  const dashes = [];
+test('renderer gives a static forecast then a stable solid bridge without a second rise animation', () => {
+  const labels = [];
   const ctx = new Proxy({}, {
     get: (_, name) => name === 'createLinearGradient' ? () => ({ addColorStop() {} })
-      : name === 'setLineDash' ? values => dashes.push(values) : () => {},
+      : name === 'fillText' ? value => labels.push(String(value)) : () => {},
     set: () => true,
   });
   const game = createGame();
   draw(ctx, game);
-  assert.ok(dashes.length > 0, 'grounded players should see their next bridge before jumping');
-  assert.equal(game.echoes.length, 0, 'preview must not create a real bridge');
-  const before = dashes.length;
+  assert.ok(labels.includes('起跳立即成桥'));
+  assert.equal(game.echoes.length, 0);
   tick(game, { left: true, jump: true });
-  assert.equal(game.echoes.length, 1, 'a successful launch stamps immediately');
+  assert.equal(game.echoes[0].phase, 'solid');
   draw(ctx, game);
-  assert.ok(dashes.length > before, 'the new rising echo must be visibly communicated');
+  assert.equal(labels.some(label => label.includes('显形 forming')), false);
 });
 
 for (let level = 0; level < LEVELS.length; level++) {
@@ -138,7 +137,15 @@ test('exit stays locked until the objective is collected; restart clears objecti
     let game = createGame({ level });
     Object.assign(game.player, { x: game.exit.x, y: game.exit.y, grounded: false, supportId: null });
     tick(game); assert.equal(game.status, 'playing');
-    Object.assign(game.player, { x: game.level.objective.x, y: game.level.objective.y, vy: 0 });
+    // From a clean spawn, actual first-jump input is needed to reveal the branch.
+    game = createGame({ level });
+    let frame = 0;
+    for (; frame < 80 && !game.route.revealed; frame += 1) {
+      tick(game, { left: true, jump: frame < 18 });
+    }
+    assert.equal(game.route.revealed, true);
+    Object.assign(game.player, { x: game.level.objective.x, y: game.level.objective.y, vy: 0,
+      grounded: false, supportId: null });
     tick(game); assert.equal(game.objectiveCollected, true);
     Object.assign(game.player, { x: game.exit.x, y: game.exit.y, vy: 0 });
     tick(game); assert.equal(game.status, 'won');
