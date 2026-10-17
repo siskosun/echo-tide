@@ -5,31 +5,71 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Echo Tide / 叠影潮</title>
     <style>
+      :root {
+        color-scheme: dark;
+        --ink: #e7fff8;
+        --muted: #9fb8b4;
+      }
       html, body {
         margin: 0;
-        height: 100%;
-        background: #0b1220;
-        color: #e8eefc;
-        font-family: system-ui, sans-serif;
+        min-height: 100%;
+        background:
+          radial-gradient(900px 420px at 50% -10%, #13464c 0%, transparent 60%),
+          #070d12;
+        color: var(--ink);
+        font-family: "WenQuanYi Micro Hei", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif;
+      }
+      body {
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
+        padding: 28px 16px 40px;
       }
-      h1 { font-size: 1.25rem; font-weight: 600; margin: 0 0 0.5rem; }
-      p { margin: 0 0 1rem; opacity: 0.75; font-size: 0.9rem; }
+      .wrap { width: min(960px, 100%); }
+      .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+      select, button { font: inherit; color: var(--ink); background: #173e44; border: 1px solid #477b78; border-radius: 6px; padding: 9px 12px; }
+      button { cursor: pointer; }
+      [hidden] { display: none !important; }
+      h1 {
+        font-size: 1.35rem;
+        font-weight: 640;
+        letter-spacing: 0.04em;
+        margin: 0 0 6px;
+      }
+      h1 span { color: #8ef6df; font-weight: 520; }
+      .lede {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font-size: 0.92rem;
+        line-height: 1.45;
+      }
       canvas {
-        background: #132033;
-        border: 1px solid #2a3f5f;
-        border-radius: 8px;
-        image-rendering: pixelated;
+        width: 100%;
+        height: auto;
+        display: block;
+        background: #071018;
+        border-radius: 12px;
+        box-shadow: 0 22px 50px rgba(0, 0, 0, 0.35), 0 0 0 1px #24555a;
+      }
+      canvas:focus { outline: 2px solid #8ef6df; outline-offset: 3px; }
+      .foot {
+        margin: 12px 0 0;
+        color: var(--muted);
+        font-size: 0.85rem;
+        line-height: 1.5;
       }
     </style>
   </head>
   <body>
-    <h1>Echo Tide / 叠影潮</h1>
-    <p>Temporal echo platformer stub — game-exp prototype</p>
-    <canvas id="game" width="640" height="360" aria-label="Echo Tide game canvas"></canvas>
+    <div class="wrap">
+      <h1>Echo Tide <span>/ 叠影潮</span></h1>
+      <p class="lede">新版试验：后续窄桥会沿起跳前可见的短轨道移动，空中按 Shift / J 冲刺追上它。每次安全落地都会恢复下一次冲刺；中央亮心用于连击。运动轨迹确定，不靠猜。</p>
+      <div class="toolbar"><label for="room">关卡</label><select id="room"><option value="0">01 折返接力</option><option value="1">02 留一条退路</option><option value="2">03 借路归航</option></select><label for="difficulty">操作</label><select id="difficulty"><option value="hard" selected>挑战：提前确定窄桥</option><option value="standard">入门：确定平台</option></select><label for="style">玩法</label><select id="style"><option value="surf" selected>试验：踏浪追桥</option><option value="classic">对照：原版连跳</option></select><button id="restart" type="button">重试本关</button><button id="next" type="button" hidden>下一关 →</button></div>
+      <canvas id="game" width="960" height="540" tabindex="0" aria-label="叠影潮游戏。方向键或 AD 移动，空格跳跃，Shift 或 J 空中冲刺，E 锚定，R 重开。"></canvas>
+      <p id="status" class="foot" role="status" aria-live="polite"></p>
+      <p id="hint" class="foot"></p>
+      <p class="foot">挑战模式：第一跳安全教学；踩上首块回声后，每次起跳前都会显示确定的落点。起跳即时成桥，不再空中随机二选一；跳偏后回到旧桥可获得一次有限的补救机会，新桥不能跨跳存储。左右潮印仍会在第一块回声成功落脚后揭晓；已成功取得的桥仍受寿命与锚定限制。新桥与起跳位置必须保持明显水平间隔，轻微左右移动、原地连跳无法逐层抬高；可以先调整位置，再向预告落点完成真正的横向跳跃。新桥不能直接生成在脚下或叠成竖直台阶；边缘距离不足时请转身或后退。「踏浪追桥」中部分窄桥会沿可见轨道水平往返，只有本跳追上并踩到的桥才会停止移动。每次起跳可在空中按 Shift/J 冲刺一次，无论踩中新桥、旧桥还是固定石台，只要安全落地，下跳都会恢复冲刺；中央亮心只奖励精准连击，不锁住基本能力。首跳教学仍为固定宽桥。切换「原版连跳」会保留本关随机种子，便于对照体验。使用 ←→ / A D 移动，空格 / W / ↑ 跳跃，E 锚定，R 重开，Enter 下一关。最多锚定一块；切换标签页自动暂停。</p>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
