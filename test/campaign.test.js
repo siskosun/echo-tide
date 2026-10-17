@@ -65,6 +65,27 @@ for (let level = 0; level < LEVELS.length; level += 1) {
   });
 }
 
+test('one fixed right-bank winning input script cannot also complete the left-bank route', () => {
+  const right = playRoom(1, { seed: 0 });
+  assert.equal(right.game.route.side, 'right');
+  assert.equal(right.game.status, 'won');
+
+  // Replay EVERY actual input at the same 60 Hz; change only the hidden seed.
+  let wrong = createGame({ level: 1, seed: 1 });
+  for (const input of right.inputs) wrong = update(wrong, input, dt);
+  assert.equal(wrong.route.side, 'left');
+  assert.equal(wrong.objectiveCollected, false);
+  assert.notEqual(wrong.status, 'won',
+    'the old fixed solution must fail to acquire the alternative objective');
+
+  const adaptive = playRoom(1, { seed: 1 });
+  assert.equal(adaptive.game.status, 'won');
+  assert.equal(adaptive.game.route.side, 'left');
+  assert.equal(adaptive.game.objectiveCollected, true);
+  assert.ok(adaptive.game.time > right.game.time + 0.5,
+    'reaching the opposite bank must impose an actual detour');
+});
+
 function anchorFixture() {
   const game = createGame({ level: 1 });
   game.echoes = [
