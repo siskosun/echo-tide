@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AIR_BRIDGE, airborneChoice } from '../src/airborne_bridge.js';
-import { PLAYER, createGame, update, airborneCandidates, overlaps } from '../src/game.js';
+import { PLAYER, createGame, update, airborneCandidates, overlaps, hasReachableStone } from '../src/game.js';
 import { draw } from '../src/render.js';
 
 const dt = 1 / 60;
@@ -70,7 +70,7 @@ test('seeded landings are repeatable without degenerating to one branch', () => 
 });
 
 test('after a forgiving first hop, hard mode previews only two narrower locations', () => {
-  const game = firstEchoLanding(0, 5);
+  const game = firstEchoLanding(1, 5);
   const options = airborneCandidates(game);
   assert.equal(options.near.w, AIR_BRIDGE.w);
   assert.equal(options.far.w, AIR_BRIDGE.w);
@@ -83,14 +83,14 @@ test('after a forgiving first hop, hard mode previews only two narrower location
 });
 
 test('airborne reveal waits for reaction cue and appears solid without rise', () => {
-  let game = firstEchoLanding(0, 5);
+  let game = firstEchoLanding(1, 5);
   game = tick(game, {});
-  game = tick(game, { left: true, jump: true });
+  game = tick(game, { right: true, jump: true });
   assert.ok(game.pendingEcho);
   assert.equal(game.echoes.length, 1);
   let delay = 0;
   for (; delay < 20 && game.pendingEcho; delay += 1) {
-    game = tick(game, { left: true, jump: delay < 8 });
+    game = tick(game, { right: true, jump: delay < 18 });
   }
   assert.ok(delay >= 8 && delay <= 12, 'reveal must occur about 160ms after launch');
   const bridge = game.echoes.find(e => e.id === 'echo-2');
@@ -99,7 +99,7 @@ test('airborne reveal waits for reaction cue and appears solid without rise', ()
 });
 
 test('both alternative landing spots can be caught by steering after the reveal', () => {
-  for (const level of [0, 1, 2]) {
+  for (const level of [1, 2]) {
     for (const [side, seed] of Object.entries(branchSeeds(level))) {
       const attempt = secondHop(level, seed, true);
       assert.equal(attempt.landed, true,
@@ -110,9 +110,9 @@ test('both alternative landing spots can be caught by steering after the reveal'
 });
 
 test('fixed direction input does not solve both second-hop possibilities', () => {
-  const seeds = branchSeeds(0);
+  const seeds = branchSeeds(1);
   const results = Object.entries(seeds).map(([side, seed]) => ({
-    side, seed, ...secondHop(0, seed, false),
+    side, seed, ...secondHop(1, seed, false),
   }));
   assert.ok(results.some(result => !result.landed),
     'a predictable held direction should no longer auto-catch both narrow choices');
@@ -131,8 +131,24 @@ test('standard mode retains full-width instant solid bridges and no pending roll
   assert.equal(tick(createGame({ level: 0, challenge: true }), { restart: true }).challengeEnabled, true);
 });
 
+test('a directly jumpable stone is used instead of overlaying confusing extra bridges', () => {
+  let game = firstEchoLanding(0, 5);
+  assert.equal(hasReachableStone(game), true);
+  const count = game.stats.stamps;
+  game = tick(game, {});
+  game = tick(game, { left: true, jump: true });
+  assert.equal(game.pendingEcho, null, 'a real fixed stone needs no random bridge');
+  assert.equal(game.stats.stamps, count, 'do not stamp a duplicate over the relay');
+  let reached = false;
+  for (let i = 0; i < 85 && game.status === 'playing'; i += 1) {
+    game = tick(game, { left: true, jump: i < 18 });
+    if (game.player.supportId === 'relay') { reached = true; break; }
+  }
+  assert.equal(reached, true, 'a normal real-input hop must reach the fixed relay stone');
+});
+
 test('actual render announces candidate positions without flashing forming labels', () => {
-  let game = firstEchoLanding(0, 7);
+  let game = firstEchoLanding(1, 7);
   const labels = [];
   const ctx = new Proxy({}, {
     get: (_, name) => name === 'createLinearGradient'
