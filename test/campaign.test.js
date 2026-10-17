@@ -1,5 +1,6 @@
 import test from 'node:test';
 import './route_fork.test.js';
+import './airborne_bridge.test.js';
 import assert from 'node:assert/strict';
 import { createGame, update, ECHO, PLAYER, LEVELS, maxJumpHeight } from '../src/game.js';
 import { playRoom } from './campaign-driver.js';
