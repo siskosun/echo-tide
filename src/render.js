@@ -1,4 +1,5 @@
-import { ECHO, KILL_Y, WORLD } from './game.js';
+import { ECHO, KILL_Y, WORLD, predictEcho } from './game.js';
+import { tideDirectionAt } from './tide_variation.js';
 
 const FONT = '"WenQuanYi Micro Hei", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif';
 
@@ -26,6 +27,9 @@ export function draw(ctx, game) {
   for (const platform of game.platforms) drawPlatform(ctx, platform);
   for (const echo of game.echoes) {
     if (echo.phase !== 'rise') drawEcho(ctx, game, echo);
+  }
+  if (game.echoMode === 'flow' && game.status === 'playing' && game.player.grounded && game.echoesEnabled) {
+    drawLaunchForecast(ctx, game);
   }
   drawExit(ctx, game);
   drawObjective(ctx, game);
@@ -110,6 +114,21 @@ function drawPlatform(ctx, platform) {
   ctx.fillStyle = goal ? '#fff4d2' : '#b7f3e6';
   roundRect(ctx, platform.x, platform.y, platform.w, 4, 3);
   ctx.fill();
+}
+
+function drawLaunchForecast(ctx, game) {
+  const rect = predictEcho(game);
+  const shift = tideDirectionAt(game.time);
+  const text = shift === 'right' ? '潮流向右' : shift === 'left' ? '潮流向左' : '潮流平缓';
+  ctx.save();
+  ctx.strokeStyle = '#ffe7b5';
+  ctx.fillStyle = 'rgba(255, 231, 181, 0.13)';
+  ctx.lineWidth = 2.5;
+  ctx.setLineDash([9, 6]);
+  ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+  ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+  ctx.restore();
+  label(ctx, rect.x + rect.w / 2, rect.y - 18, `下次起跳 · ${text}`, '#ffe7b5');
 }
 
 function drawEcho(ctx, game, echo) {
@@ -256,7 +275,9 @@ function drawHud(ctx, game) {
   ctx.fillText(`${Number.isInteger(game.levelIndex) ? `${game.levelIndex + 1} / 3` : '练习'}  ${game.level.title} · ${game.level.subtitle}`, 24, 18);
   ctx.font = `12px ${FONT}`;
   ctx.fillStyle = '#b7e4dc';
-  ctx.fillText(`←→ 移动 · 空格 跳跃 · R 重开${game.level.anchor ? ' · E 锚定脚下回声' : ''}    回声：${ECHO.rise} 秒成形 / ${ECHO.solid} 秒消失 / 最多 ${ECHO.maxAlive} 块`, 24, 40);
+  ctx.fillText(game.echoMode === 'flow'
+    ? `起跳即造桥 · 虚线是当前预测落点 · 潮流位置随时机变化 · E 锚定 / R 重试`
+    : `←→ 移动 · 空格 跳跃 · R 重开${game.level.anchor ? ' · E 锚定脚下回声' : ''}    回声：${ECHO.rise} 秒成形 / ${ECHO.solid} 秒消失 / 最多 ${ECHO.maxAlive} 块`, 24, 40);
 
   const seconds = Math.ceil(game.timeLeft);
   ctx.textAlign = 'right';
