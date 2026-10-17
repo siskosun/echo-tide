@@ -11,6 +11,8 @@ const tick = (g, input = {}) => update(g, input, dt);
 test('human-facing room hints explain takeoff stamping rather than old landing stamping', () => {
   for (const [index, level] of LEVELS.entries()) {
     assert.match(level.hint, /起跳/, `room ${index + 1} must explain the takeoff action`);
+    assert.match(level.hint, /首跳/, `room ${index + 1} must distinguish the first teaching jump`);
+    assert.match(level.hint, /双候选|两个候选/, `room ${index + 1} must explain persistent later choices`);
     assert.doesNotMatch(level.hint, /朝左落地|落地(?:后|时).*造桥/,
       `room ${index + 1} must not teach the superseded landing-stamp mechanism`);
   }
