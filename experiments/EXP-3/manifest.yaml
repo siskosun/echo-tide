@@ -1,0 +1,43 @@
+created_at: "2026-10-17T12:43:19+08:00"
+experiment:
+  host: "github.com"
+  issue_id: "5894964894"
+  issue_number: "3"
+  repository_id: "1390980484"
+hypothesis: "在同一冻结原型、相同技术任务及自动验收条件下，含真实人类设计指导的流程可能改变质量或成本；在实际人工意见到来之前保持基线不变，不伪造对照结果。"
+kill_criteria:
+  - "无真实人类意见却将 AI 自评冒充人类设计指导"
+  - "改动原有三关物理和规则、受保护 refs/Ledger，或修改共同评价标准迎合此组"
+  - "擅自推进 Review、PROMISING、SELECTED 或将合成测试解释为玩家偏好"
+operation_id: "req-et-mobile-human-20261017-v1"
+parent:
+  commit: "aecd07cd0b84d29958aad0196840f20eb98fc1ad"
+  experiment: "EXP-1"
+review:
+  protocol: "manual-playtest-v1"
+runtime:
+  adapter: "node-npm"
+  policy_path: ".game-exp/project-policy.json"
+schema_version: 2
+scope:
+  allowed:
+    - "src/**"
+    - "index.html"
+    - "test/**"
+    - "README.md"
+  avoid:
+    - ".github/**"
+    - "tools/game-exp/**"
+    - "plugins/**"
+    - ".game-exp/**"
+subject:
+  id: "echo-tide"
+  name: "Echo Tide / 叠影潮"
+  root_path: "src"
+  type: "game-prototype"
+success_criteria:
+  - "在真实人类指导输入前仅冻结基线和实验身份，不编写 HUMAN_AI 实现"
+  - "人工指导必须保留原始内容、来源和记录时间；一条具体指导对应可追踪的源码修改"
+  - "按相同移动端左右+跳跃与可选锚定控制任务以及相同测试协议评价，保留输入取消与失焦清理"
+  - "保持原有三关规则与键盘兼容，npm test 与 build 通过，并接受人工 Review"
+title: "Echo Tide 移动端触摸控制 — 真实人类指导组（尚无人工反馈）"
