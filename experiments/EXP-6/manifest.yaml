@@ -1,0 +1,47 @@
+created_at: "2026-10-17T13:53:14Z"
+experiment:
+  host: "github.com"
+  issue_id: "5899033401"
+  issue_number: "6"
+  repository_id: "1390980484"
+hypothesis: "将已经通过 EXP-5 真人正向体验和 69 项自动测试的完整游戏按字节迁移到当前 main 基线的独立分支，可以消除 EXP-1 未集成造成的 Rehearsal 缺失文件冲突，同时不改变玩法；新候选的体验与合并安全性仍须重新验证。"
+kill_criteria:
+  - "复制游戏时出现无依据的运行逻辑改动、隐形内容变更或旧实验文件被遗漏。"
+  - "可信测试失败或某项测试缺失且未解释；浏览器运行出现核心错误。"
+  - "触碰 .github、受保护 Ledger、game-exp 工具、EXP-1/2/3/5 源或 main。"
+  - "以 EXP-5 的旧 Review PASS 或旧失败预演替代本候选新的评审/合并验证。"
+operation_id: "req-et-exp6-main-standalone-20261017-v1"
+parent:
+  commit: "17f7480b6857e1cb658a9ef2bedfcf2d842d9831"
+  experiment: null
+review:
+  protocol: "manual-playtest-v1"
+runtime:
+  adapter: "node-npm"
+  policy_path: ".game-exp/project-policy.json"
+schema_version: 2
+scope:
+  allowed:
+    - "src/**"
+    - "index.html"
+    - "test/**"
+    - "README.md"
+    - "package.json"
+  avoid:
+    - ".github/**"
+    - "tools/game-exp/**"
+    - "plugins/**"
+    - ".game-exp/**"
+    - "experiments/**"
+subject:
+  id: "echo-tide"
+  name: "Echo Tide / 叠影潮"
+  root_path: "src"
+  type: "game-prototype"
+success_criteria:
+  - "从 main 初始化独立实验；不依赖先合并 EXP-1。"
+  - "全部移植的 src/**、index.html、test/** 以及所需运行和测试配置与 EXP-5 钉定源码文件 SHA 一致；不混入其他实验。"
+  - "受信流程 npm ci、npm test（至少既有 69 项）、npm run build 成功；生成不可变且可验证的 Candidate。"
+  - "浏览器真实操作验证后才提交新的人工 Review，禁止把 EXP-5 的 PASS 自动沿用。"
+  - "后续经独立 Review 和人工 PROMISING 批准后再运行对最新 main 的 Rehearsal；不可绕过任何 gate。"
+title: "叠影潮：当前 main 基线的完整可玩版本"
