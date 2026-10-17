@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { createGame, update, PLAYER, PHYSICS, solidRects } from '../src/game.js';
 
 // Input-only routes from spawn. No teleporting, injected platforms or state edits.
-export function playRoom(level, { flow = false, seed = 0 } = {}) {
-  let game = createGame({ level, seed });
+export function playRoom(level, { flow = false, seed = 0, surf = false } = {}) {
+  let game = createGame({ level, seed, surf });
   const inputs = [];
   const supports = [];
   const dt = 1 / 60;
