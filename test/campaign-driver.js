@@ -11,7 +11,12 @@ export function playRoom(level, { flow = false, seed = 0 } = {}) {
     inputs.push(input);
     game = update(game, input, dt);
     supports.push(game.player.supportId);
-    assert.notEqual(game.status, 'lost', `room ${level}: route fell or timed out`);
+    assert.notEqual(game.status, 'lost',
+      `room ${level}: route fell or timed out at frame=${inputs.length} `
+      + `time=${game.time.toFixed(2)} `
+      + `player=${JSON.stringify(game.player)} input=${JSON.stringify(input)} `
+      + `echoes=${JSON.stringify(game.echoes.map(e => ({id:e.id,x:e.x,y:e.y,w:e.w,phase:e.phase})))} `
+      + `events=${JSON.stringify(game.events)}`);
   }
   function wait(n = flow ? 0 : 45) {
     const x = game.player.x;
