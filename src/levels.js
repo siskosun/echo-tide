@@ -14,7 +14,7 @@ export const LEVELS = [
   },
   {
     title: '留一条退路', subtitle: '一枚锚，留住一段时间', anchor: true,
-    hint: '首跳造宽桥、落脚揭示潮印；此后每跳两个候选，空中确定一个。站在实心回声上可按 E 锚定。',
+    hint: '首跳造宽桥、落脚揭示潮印；此后每次起跳都有两个候选，空中确定一个。站在实心回声上可按 E 锚定。',
     spawn: { x: 210, facing: 1 },
     platforms: [
       { id: 'start', x: 30, y: 478, w: 330, h: 16, role: 'start' },
@@ -25,7 +25,7 @@ export const LEVELS = [
   },
   {
     title: '借路归航', subtitle: '去时铺路，归时借路', anchor: true,
-    hint: '首跳造宽桥、落脚揭示核心方向；此后每跳双候选，空中确认落点并修正方向。可保留回程锚。',
+    hint: '首跳造宽桥、落脚揭示核心方向；此后每次起跳都预告双候选，空中确认落点并修正方向。可保留回程锚。',
     spawn: { x: 690, facing: -1 },
     platforms: [
       { id: 'start', x: 640, y: 478, w: 290, h: 16, role: 'start' },
