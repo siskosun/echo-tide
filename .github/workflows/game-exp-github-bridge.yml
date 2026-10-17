@@ -31,6 +31,7 @@ jobs:
             tools/game-exp/archive_control.py
             tools/game-exp/archive_runner.py
             tools/game-exp/client.py
+            tools/game-exp/project_policy.py
             tools/game-exp/trusted_writer.py
             tools/game-exp/domain_core.py
             tools/game-exp/protocol_core.py
