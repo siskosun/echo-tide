@@ -48,7 +48,11 @@ export function playRoom(level, { flow = false } = {}) {
     for (let i = 0; i < 50 && game.status === 'playing'; i++) step({ right: true });
   } else {
     jumpTo('start', 680, -1); wait(); jumpTo(echo(402).id, 546, -1); wait();
-    jumpTo(echo(326).id, 410, -1); step({ anchor: true }); wait();
+    // With takeoff stamping, the next bridge exists only AFTER this jump begins.
+    const outbound = `echo-${game.nextId}`;
+    jumpTo(outbound, 410, -1);
+    assert.equal(game.player.supportId, outbound, 'actual jump lands on the newly created outbound bridge');
+    step({ anchor: true }); wait();
     reusedAnchor = game.anchorId;
     jumpTo('relic', 230, -1);
     for (let i = 0; i < 45; i++) step({ left: true });
@@ -58,7 +62,10 @@ export function playRoom(level, { flow = false } = {}) {
     assert.equal(game.echoes.length, 1);
     jumpTo(reusedAnchor, 390, 1);
     assert.equal(game.player.supportId, reusedAnchor, 'reuse the outbound anchor on the return trip');
-    wait(); jumpTo(echo(250).id, 530, 1);
+    wait();
+    const returning = `echo-${game.nextId}`;
+    jumpTo(returning, 530, 1);
+    assert.equal(game.player.supportId, returning, 'actual jump lands on the newly created return bridge');
     for (let i = 0; i < 90 && game.status === 'playing'; i++) step({ right: true });
   }
   assert.equal(game.status, 'won', `room ${level} must reach its exit`);
