@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AIR_BRIDGE, airborneChoice } from '../src/airborne_bridge.js';
-import { PLAYER, createGame, update, airborneCandidates, overlaps, hasReachableStone, solidRects } from '../src/game.js';
+import { PLAYER, ECHO, RECOVERY, createGame, update, airborneCandidates, overlaps, hasReachableStone, solidRects } from '../src/game.js';
 import { draw } from '../src/render.js';
 
 const dt = 1 / 60;
@@ -317,6 +317,100 @@ test('catching the bridge during the creating jump preserves normal next-jump us
     assert.equal(game.flightBridgeId, null);
     assert.ok(solidRects(game).some(rect => rect.id === 'echo-2'));
   }
+});
+
+test('returning to the previously earned echo grants one safe retry instead of sudden collapse', () => {
+  for (const [side, seed] of Object.entries(branchSeeds(1))) {
+    let game = firstEchoLanding(1, seed);
+    for (let i = 0; i < 14; i += 1) game = tick(game, {});
+    assert.equal(game.player.supportId, 'echo-1');
+    assert.equal(game.player.vx, 0, 'failed jump must start with no hidden sideways motion');
+    game.echoes[0].age = ECHO.solid - 0.05; // Boundary: expires during a normal hop without a guard.
+    game = tick(game, { jump: true });
+    assert.equal(game.takeoffSupportId, 'echo-1');
+    let resolved = false;
+    for (let i = 0; i < 80 && game.status === 'playing'; i += 1) {
+      game = tick(game, { jump: i < 18 });
+      const support = game.echoes.find(e => e.id === 'echo-1');
+      assert.equal(support?.phase, 'solid', 'earned takeoff support must not disappear midflight');
+      if (game.player.grounded) { resolved = true; break; }
+    }
+    assert.equal(resolved, true, side + ': real jump must return to its previous echo');
+    assert.equal(game.player.supportId, 'echo-1');
+    assert.equal(game.echoes.find(e => e.id === 'echo-1')?.phase, 'solid');
+    assert.equal(game.echoes.find(e => e.id === 'echo-1')?.recoveryUsed, true);
+    assert.ok(game.echoes.find(e => e.id === 'echo-1').age
+      <= ECHO.solid - RECOVERY.retrySeconds + dt,
+    'touchdown grants enough room for another human jump');
+    assert.ok(game.events.some(e => e.type === 'recovery_grace'),
+      'the once-only retry must have an explicit testable event');
+    assert.equal(game.echoes.find(e => e.id === 'echo-2')?.phase, 'sink',
+      'the missed new echo cannot be stored for the next jump');
+    assert.equal(game.flightBridgeId, null);
+    assert.equal(game.takeoffSupportId, null);
+
+    // Old bridge remains usable throughout a meaningful human reaction window.
+    for (let i = 0; i < 48; i += 1) {
+      game = tick(game);
+      assert.equal(game.echoes.find(e => e.id === 'echo-1')?.phase, 'solid');
+      assert.equal(game.player.supportId, 'echo-1');
+    }
+  }
+});
+
+test('repeat idle jumps cannot extend the same earned echo indefinitely', () => {
+  let game = firstEchoLanding(1, branchSeeds(1).near);
+  for (let i = 0; i < 14; i += 1) game = tick(game, {});
+  game.echoes[0].age = ECHO.solid - 0.04;
+
+  // One failed hop earns ONE recovery. The second vertical hop cannot reset it again.
+  for (let hop = 0; hop < 2; hop += 1) {
+    game = tick(game, { jump: true });
+    let landed = false;
+    for (let i = 0; i < 80 && game.status === 'playing'; i += 1) {
+      game = tick(game, { jump: i < 18 });
+      if (game.player.grounded) { landed = true; break; }
+    }
+    assert.equal(landed, true);
+    assert.equal(game.player.supportId, 'echo-1');
+    assert.equal(game.echoes.find(e => e.id === 'echo-1')?.recoveryUsed, true);
+    game = tick(game, { jump: false });
+  }
+  const old = game.echoes.find(e => e.id === 'echo-1');
+  assert.ok(old.age > ECHO.solid - RECOVERY.retrySeconds + 0.01,
+    'second failed hop may NOT receive another timer reset');
+  const earliest = old.age;
+  for (let i = 0; i < 180 && old.phase === 'solid'; i += 1) game = tick(game);
+  assert.notEqual(old.phase, 'solid',
+    'a single echo can still expire after its bounded recovery, preserving the timer challenge');
+  assert.ok(earliest < old.age, 'real idle time must continue progressing');
+});
+
+test('capacity eviction cannot consume the bridge a player just launched from', () => {
+  let game = firstEchoLanding(1, branchSeeds(1).near);
+  for (let i = 0; i < 14; i += 1) game = tick(game, {});
+  const safeBridge = game.echoes[0];
+  game.echoes.push(
+    { id: 'echo-2', x: 25, y: 100, w: 80, h: 14, phase: 'solid', age: 1 },
+    { id: 'echo-3', x: 430, y: 80, w: 80, h: 14, phase: 'solid', age: 1 },
+    { id: 'echo-4', x: 800, y: 100, w: 80, h: 14, phase: 'solid', age: 1 },
+  );
+  game.anchorId = 'echo-4';
+  game.nextId = 5;
+  game.echoes[0].age = ECHO.solid - 0.01;
+  game = tick(game, { right: true, jump: true });
+  assert.equal(game.takeoffSupportId, 'echo-1');
+  let spawned = false;
+  for (let i = 0; i < 18 && !spawned; i += 1) {
+    game = tick(game, { right: true, jump: true });
+    spawned = game.echoes.some(e => e.id === 'echo-5');
+  }
+  assert.equal(spawned, true, 'fifth real jump bridge must trigger capacity enforcement');
+  assert.equal(safeBridge.phase, 'solid', 'departing echo must stay solid for fallback');
+  assert.equal(game.echoes.find(e => e.id === 'echo-4').phase, 'solid',
+    'anchored echo must remain immune to capacity eviction');
+  assert.equal(game.echoes.find(e => e.id === 'echo-2').phase, 'sink',
+    'another older and unprotected echo is the correct eviction target');
 });
 
 test('actual render announces candidate positions without flashing forming labels', () => {
