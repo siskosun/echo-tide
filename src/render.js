@@ -1,4 +1,4 @@
-import { ECHO, KILL_Y, WORLD, predictEcho, airborneForecast } from './game.js';
+import { ECHO, KILL_Y, WORLD, predictEcho, airborneForecast, canPlaceFlowEcho } from './game.js';
 
 const FONT = '"WenQuanYi Micro Hei", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif';
 
@@ -121,6 +121,12 @@ function drawLaunchForecast(ctx, game) {
     // Preview and real takeoff use the SAME deterministic selection.
     const cue = game.airborneCue;
     const forecast = cue ?? airborneForecast(game);
+    if (forecast.phase === 'blocked' || forecast.blocked || forecast.selected === null) {
+      label(ctx, Math.max(130, Math.min(WORLD.w - 130, game.player.x + 14)),
+        Math.max(106, game.player.y - 22),
+        '此处不能叠桥 · 移动或转身', '#ffb089');
+      return;
+    }
     const { options, selected } = forecast;
     const rect = options[selected];
     const stone = rect.role === 'stone';
@@ -138,6 +144,13 @@ function drawLaunchForecast(ctx, game) {
   }
   const rect = game.airborneCue?.phase === 'tutorial'
     ? game.airborneCue.options.near : predictEcho(game);
+  if (game.player.grounded && game.echoMode === 'flow'
+    && !canPlaceFlowEcho(game, rect)) {
+    label(ctx, Math.max(130, Math.min(WORLD.w - 130, game.player.x + 14)),
+      Math.max(106, game.player.y - 22),
+      '这里不能向上叠桥 · 先移动', '#ffb089');
+    return;
+  }
   ctx.save();
   ctx.strokeStyle = '#ffe7b5';
   ctx.fillStyle = 'rgba(255, 231, 181, 0.13)';
