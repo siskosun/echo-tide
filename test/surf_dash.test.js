@@ -181,7 +181,8 @@ test('the first post-tutorial narrow bridge has a pre-shown deterministic moving
     if (Math.abs(platform.x - startX) > 15) leftStart = true;
   }
   assert.equal(leftStart, true, 'the platform visibly moves while airborne');
-  assert.deepEqual(airborneForecast(game).blocked, false);
+  assert.deepEqual(game.airborneCue.options, original.options,
+    'takeoff uses the exact forecast, not a fresh airborne lottery');
 });
 
 test('movement is collision-authoritative, and a caught rail freezes on landing', () => {
