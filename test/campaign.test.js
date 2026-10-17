@@ -1,4 +1,5 @@
 import test from 'node:test';
+import './tide_variation.test.js';
 import assert from 'node:assert/strict';
 import { createGame, update, ECHO, PLAYER, LEVELS, maxJumpHeight } from '../src/game.js';
 import { playRoom } from './campaign-driver.js';
@@ -13,7 +14,7 @@ test('relay room supports immediate successive jumps with no wait for forming ec
   assert.ok(game.time < 7, `continuous route took ${game.time}s`);
 });
 
-test('renderer reveals an echo location only after a landing has created it', () => {
+test('renderer forecasts the next launch point before a jump and displays the actual forming bridge', () => {
   const dashes = [];
   const ctx = new Proxy({}, {
     get: (_, name) => name === 'createLinearGradient' ? () => ({ addColorStop() {} })
@@ -22,15 +23,13 @@ test('renderer reveals an echo location only after a landing has created it', ()
   });
   const game = createGame();
   draw(ctx, game);
-  assert.equal(dashes.length, 0, 'no ghost destination on the starting dock');
-  let stamped = false;
-  for (const input of playRoom(0, { flow: true }).inputs) {
-    tick(game, input);
-    if (game.echoes.length) { stamped = true; break; }
-  }
-  assert.equal(stamped, true);
+  assert.ok(dashes.length > 0, 'grounded players should see their next bridge before jumping');
+  assert.equal(game.echoes.length, 0, 'preview must not create a real bridge');
+  const before = dashes.length;
+  tick(game, { left: true, jump: true });
+  assert.equal(game.echoes.length, 1, 'a successful launch stamps immediately');
   draw(ctx, game);
-  assert.ok(dashes.length > 0, 'the actual forming echo still communicates its location');
+  assert.ok(dashes.length > before, 'the new rising echo must be visibly communicated');
 });
 
 for (let level = 0; level < LEVELS.length; level++) {
@@ -105,10 +104,10 @@ test('capacity pressure protects the anchored echo and expires an unanchored one
     { ...game.echoes[1], id: 'echo-4', x: 30, y: 100 },
   );
   game.nextId = 5;
-  // One actual landing creates the fifth echo.
-  stand(game, game.platforms[0]); game.player.y -= 2;
-  game.player.grounded = false; game.player.vy = 200; game.airTime = 0.2;
-  tick(game);
+  // One successful launch creates the fifth echo in the new flow mode.
+  stand(game, game.platforms[0]); game.player.x = 160;
+  game.player.facing = 1;
+  tick(game, { jump: true });
   assert.equal(game.echoes.find(e => e.id === 'echo-1').phase, 'solid');
   assert.equal(game.echoes.find(e => e.id === 'echo-2').phase, 'sink');
   assert.equal(game.echoes.filter(e => e.phase !== 'sink').length, ECHO.maxAlive);
@@ -121,9 +120,8 @@ test('a repeat stamp never moves or phases out an anchored bridge', () => {
   Object.assign(bridge, { x: 189, y: 402 });
   const before = { ...bridge };
   stand(game, game.platforms[0]);
-  game.player.x = 50; game.player.facing = 1; game.player.y -= 2;
-  game.player.grounded = false; game.player.vy = 200; game.airTime = 0.2;
-  tick(game);
+  game.player.x = 50; game.player.facing = 1;
+  tick(game, { jump: true });
   assert.deepEqual(bridge, before);
 });
 
