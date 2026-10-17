@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { createGame, update, PLAYER, PHYSICS, solidRects } from '../src/game.js';
 
 // Input-only routes from spawn. No teleporting, injected platforms or state edits.
-export function playRoom(level, { flow = false } = {}) {
-  let game = createGame({ level });
+export function playRoom(level, { flow = false, seed = 0 } = {}) {
+  let game = createGame({ level, seed });
   const inputs = [];
   const supports = [];
   const dt = 1 / 60;
@@ -47,6 +47,14 @@ export function playRoom(level, { flow = false } = {}) {
   } else if (level === 1) {
     jumpTo('start', 290, 1); wait(); jumpTo(echo(402).id, 425, 1);
     step({ anchor: true }); wait(360); // Outwait the normal lifetime on a retained bridge.
+    if (game.route?.side === 'left') {
+      // Alternate seed reveals an actual left-bank objective at the start dock.
+      // Walk off the anchored echo, land on the safe start platform and collect it.
+      for (let i = 0; i < 170 && !game.objectiveCollected; i++) step({ left: true });
+      assert.equal(game.objectiveCollected, true, 'must visit revealed left-bank seal');
+      // Approach the anchored echo again using only movement + jump inputs.
+      for (let i = 0; i < 130 && game.player.x < 280; i++) step({ right: true });
+    }
     jumpTo(game.anchorId, 440, 1); wait(); jumpTo(echo(326).id, 575, 1); wait();
     jumpTo('goal', 740, 1);
     for (let i = 0; i < 50 && game.status === 'playing'; i++) step({ right: true });
