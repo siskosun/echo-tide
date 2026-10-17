@@ -312,7 +312,9 @@ function drawHud(ctx, game) {
       ? `挑战：每跳双候选 · 黄虚框是回声 / 绿实框是石台 · 空中确认落点`
       : game.route?.revealed
         ? `潮印在${game.route.side === 'left' ? '左岸 ←' : '右岸 →'} · 起跳即成桥 · E 锚定 / R 重试`
-        : '起跳即成桥 · 首次落上回声才会揭示本局潮印位置')
+        : game.challengeEnabled
+          ? '首跳：固定宽桥教学 · 此后每跳双候选（黄虚框/绿实框）'
+          : '起跳即成桥 · 首次落上回声才会揭示本局潮印位置')
     : `←→ 移动 · 空格 跳跃 · R 重开${game.level.anchor ? ' · E 锚定脚下回声' : ''}    回声：${ECHO.rise} 秒成形 / ${ECHO.solid} 秒消失 / 最多 ${ECHO.maxAlive} 块`, 24, 40);
 
   const seconds = Math.ceil(game.timeLeft);
