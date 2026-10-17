@@ -8,8 +8,15 @@ canvas.height = Math.round(WORLD.h * dpr);
 const ctx = canvas.getContext('2d');
 ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+function newRouteSeed() {
+  const entropy = new Uint32Array(1);
+  if (globalThis.crypto?.getRandomValues) globalThis.crypto.getRandomValues(entropy);
+  else entropy[0] = Math.floor(Math.random() * 0x100000000);
+  return entropy[0];
+}
+
 const keys = new Set();
-let game = createGame();
+let game = createGame({ seed: newRouteSeed() });
 let last = performance.now();
 let restartLatch = false;
 let pointerRestart = false;
@@ -24,7 +31,7 @@ let uiKey = '';
 let pointerNext = false;
 let buttonRestart = false;
 roomSelect.addEventListener('change', () => {
-  game = createGame({ level: Number(roomSelect.value) });
+  game = createGame({ level: Number(roomSelect.value), seed: newRouteSeed() });
   keys.clear();
   canvas.focus();
 });
@@ -83,7 +90,11 @@ function frame(now) {
   // Fixed simulation steps keep echo timing/collision consistent at any refresh rate.
   accumulator += dt;
   const events = [];
-  if (restart || next) game = update(game, input, 0);
+  if (restart || next) {
+    const before = game;
+    game = update(game, input, 0);
+    if (game !== before) game.seed = newRouteSeed();
+  }
   input.restart = false;
   input.next = false;
   while (accumulator >= 1 / 60) {
@@ -99,15 +110,19 @@ function frame(now) {
 }
 
 function syncUi() {
-  const key = `${game.levelIndex}:${game.status}:${game.objectiveCollected}`;
+  const key = `${game.levelIndex}:${game.status}:${game.objectiveCollected}:${game.route?.side ?? 'unknown'}`;
   if (uiKey === key) return;
   uiKey = key;
   roomSelect.value = String(game.levelIndex);
-  hint.textContent = game.level.hint;
+  hint.textContent = game.route?.revealed
+    ? `${game.level.hint} · 本局潮印：${game.route.side === 'left' ? '左岸' : '右岸'}`
+    : game.level.hint;
   nextButton.hidden = game.status !== 'won' || game.levelIndex === LEVELS.length - 1;
   status.textContent = game.status === 'lost' ? '坠落或超时，按 R 重试本关。' : game.status === 'won'
     ? (game.levelIndex === LEVELS.length - 1 ? '三关完成！可以从关卡菜单再次挑战。' : '本关完成！按 Enter 进入下一关。')
-    : `${game.level.title} · ${game.objectiveCollected ? '前往出口' : `先取得${game.level.objective.name}`}`;
+    : `${game.level.title} · ${game.objectiveCollected ? '前往出口'
+      : game.route && !game.route.revealed ? '先落到第一块回声，揭晓本局潮印'
+      : `先取得${game.level.objective?.name ?? '潮印'}`}`;
 }
 
 function voice(events) {
