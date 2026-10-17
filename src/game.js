@@ -168,6 +168,25 @@ export function airborneCandidates(game) {
   return { near, far };
 }
 
+/** A clearly visible fixed stone within a physically reachable jump is the target. */
+export function hasReachableStone(game) {
+  if (!game.player.grounded) return false;
+  const top = supportTop(game, game.player.supportId);
+  if (top === null) return false;
+  const maxRise = maxJumpHeight();
+  return game.platforms.some(platform => {
+    if (platform.id === game.player.supportId) return false;
+    const rise = top - platform.y;
+    if (rise < 8 || rise > maxRise) return false;
+    const t = (PHYSICS.jumpSpeed
+      + Math.sqrt(PHYSICS.jumpSpeed ** 2 - 2 * PHYSICS.gravity * rise)) / PHYSICS.gravity;
+    const endX = game.player.x + game.player.facing * PHYSICS.moveSpeed * t;
+    const left = Math.min(game.player.x, endX);
+    const right = Math.max(game.player.x + PLAYER.w, endX + PLAYER.w);
+    return right > platform.x + 3 && left < platform.x + platform.w - 3;
+  });
+}
+
 function queueAirborneBridge(game) {
   const options = airborneCandidates(game);
   const selected = airborneChoice(game.seed, game.levelIndex, game.nextId);
@@ -244,8 +263,11 @@ export function update(game, input = {}, dt = 1 / 60) {
       : player.y + PLAYER.h;
     // One echo per *actual* jump (not keydown). A failed airborne press makes none.
     if (game.echoMode === 'flow' && game.echoesEnabled) {
-      if (game.challengeEnabled && game.route?.revealed) queueAirborneBridge(game);
-      else stamp(game, player, launchTop);
+      if (game.challengeEnabled && game.route?.revealed) {
+        // Do not spawn visually redundant narrow echoes over an existing
+        // directly jumpable stone. The stone itself is the readable route.
+        if (!hasReachableStone(game)) queueAirborneBridge(game);
+      } else stamp(game, player, launchTop);
     }
     player.vy = -PHYSICS.jumpSpeed;
     player.grounded = false;
