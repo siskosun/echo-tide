@@ -251,7 +251,17 @@ export function canPlaceFlowEcho(game, rect) {
     Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
   // A new bridge directly under the player's horizontal footprint permits
   // a stationary vertical jump to capture it. Even a small intersection does.
-  if (horizontalOverlap(rect, playerRect(game.player)) > 1) return false;
+  const footprint = playerRect(game.player);
+  if (horizontalOverlap(rect, footprint) > 1) return false;
+  if (rect.w <= AIR_BRIDGE.w) {
+    // Reject world-clamped forecasts that erase the real jump gap.
+    // This is a GEOMETRIC constraint: if the target is drawn, the player
+    // physically has to travel horizontally to touch it. No invisible
+    // "you didn't move enough" collision rejection is imposed in midair.
+    const rightGap = rect.x - (footprint.x + footprint.w);
+    const leftGap = footprint.x - (rect.x + rect.w);
+    if (Math.max(rightGap, leftGap) < AIR_BRIDGE.minLaunchGap) return false;
+  }
   // A fixed stone can share the same top surface with an echo. Joining it
   // does not create an extra vertical step and is used by existing routes.
   return !game.echoes.some(echo => echo.phase === 'solid'
@@ -266,7 +276,7 @@ function createAirborneBridge(game, forecast) {
   if (blocked) {
     game.airborneCue = { options, selected: null, phase: 'blocked' };
     game.events.push({ type: 'bridge_blocked', reason: 'no_clear_landing' });
-    notify(game, '这里不能叠桥 · 调整站位或转身再跳');
+    notify(game, '这里没有足够的跳跃空间 · 移动或转身');
     return;
   }
   game.airborneCue = { options, selected, phase: 'revealed' };
@@ -479,7 +489,7 @@ function stamp(game, player, surfaceTop, overrideRect = null, facing = player.fa
   const rect = overrideRect ?? flowEchoRect(game, player.x + PLAYER.w / 2, surfaceTop, facing);
   if (game.echoMode === 'flow' && !canPlaceFlowEcho(game, rect)) {
     game.events.push({ type: 'bridge_blocked', reason: 'overlap_or_wall' });
-    notify(game, '这里不能叠桥 · 先改变起跳位置');
+    notify(game, '落点太近或重复叠桥 · 调整起跳位置');
     return null;
   }
   const phase = game.echoMode === 'flow' ? 'solid' : 'rise';
