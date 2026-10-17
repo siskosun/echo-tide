@@ -7,6 +7,14 @@ import { draw } from '../src/render.js';
 const dt = 1 / 60;
 const tick = (g, input = {}) => update(g, input, dt);
 
+test('human-facing room hints explain takeoff stamping rather than old landing stamping', () => {
+  for (const [index, level] of LEVELS.entries()) {
+    assert.match(level.hint, /起跳/, `room ${index + 1} must explain the takeoff action`);
+    assert.doesNotMatch(level.hint, /朝左落地|落地(?:后|时).*造桥/,
+      `room ${index + 1} must not teach the superseded landing-stamp mechanism`);
+  }
+});
+
 test('relay room supports immediate successive jumps with no wait for forming echoes', () => {
   const { game } = playRoom(0, { flow: true });
   assert.equal(game.status, 'won');
