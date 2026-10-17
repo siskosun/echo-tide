@@ -63,12 +63,12 @@
   <body>
     <div class="wrap">
       <h1>Echo Tide <span>/ 叠影潮</span></h1>
-      <p class="lede">起跳先预告桥位，借着潮流连续向前跳。预先观察虚线落点，选择起跳时机。</p>
+      <p class="lede">虚线提前预告桥位，起跳后直接成桥。首次踩上回声后，才会揭示本局左右两岸的潮印位置。</p>
       <div class="toolbar"><label for="room">关卡</label><select id="room"><option value="0">01 折返接力</option><option value="1">02 留一条退路</option><option value="2">03 借路归航</option></select><button id="restart" type="button">重试本关</button><button id="next" type="button" hidden>下一关 →</button></div>
       <canvas id="game" width="960" height="540" tabindex="0" aria-label="叠影潮游戏。方向键或 AD 移动，空格跳跃，E 锚定，R 重开。"></canvas>
       <p id="status" class="foot" role="status" aria-live="polite"></p>
       <p id="hint" class="foot"></p>
-      <p class="foot">玩法试验：起跳生成下一块回声；金色虚线预告落点，潮流按周期左右推动落点。使用 ←→ / A D 移动，空格 / W / ↑ 跳跃，E 锚定，R 重开，Enter 下一关。先看虚线、再选择跳跃时机。最多锚定一块；切换标签页自动暂停。</p>
+      <p class="foot">玩法试验：虚线是预告，起跳瞬间平台即成实体；第一次踩上回声后才揭示随机左岸/右岸潮印。必须先取得本局潮印才能进出口。使用 ←→ / A D 移动，空格 / W / ↑ 跳跃，E 锚定，R 重开，Enter 下一关。最多锚定一块；切换标签页自动暂停。</p>
     </div>
     <script type="module" src="/src/main.js"></script>
   </body>
