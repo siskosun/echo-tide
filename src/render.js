@@ -139,7 +139,7 @@ function drawLaunchForecast(ctx, game) {
     ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
     ctx.restore();
     label(ctx, Math.max(130, Math.min(WORLD.w - 130, rect.x + rect.w / 2)),
-      Math.max(106, rect.y - 24), '落点已知 · 加速横跳', '#e8ffad');
+      Math.max(106, rect.y - 24), '目标已确定 · 向前横跳', '#e8ffad');
     return;
   }
   const rect = game.airborneCue?.phase === 'tutorial'
