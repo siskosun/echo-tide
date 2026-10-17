@@ -379,11 +379,15 @@ test('repeat idle jumps cannot extend the same earned echo indefinitely', () => 
   const old = game.echoes.find(e => e.id === 'echo-1');
   assert.ok(old.age > ECHO.solid - RECOVERY.retrySeconds + 0.01,
     'second failed hop may NOT receive another timer reset');
-  const earliest = old.age;
+  const beforeExpiration = game.time;
   for (let i = 0; i < 180 && old.phase === 'solid'; i += 1) game = tick(game);
   assert.notEqual(old.phase, 'solid',
     'a single echo can still expire after its bounded recovery, preserving the timer challenge');
-  assert.ok(earliest < old.age, 'real idle time must continue progressing');
+  assert.ok(game.time > beforeExpiration,
+    'the platform must expire through actual elapsed game time, not test manipulation');
+  assert.ok(game.events.some(e => e.type === 'sink') || old.phase === 'dead'
+    || old.phase === 'sink',
+    'expiration must have the original sink/dead outcome');
 });
 
 test('capacity eviction cannot consume the bridge a player just launched from', () => {
