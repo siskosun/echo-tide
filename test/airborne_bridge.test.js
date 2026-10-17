@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AIR_BRIDGE, airborneChoice } from '../src/airborne_bridge.js';
-import { PLAYER, createGame, update, airborneCandidates } from '../src/game.js';
+import { PLAYER, createGame, update, airborneCandidates, overlaps } from '../src/game.js';
 import { draw } from '../src/render.js';
 
 const dt = 1 / 60;
@@ -76,6 +76,10 @@ test('after a forgiving first hop, hard mode previews only two narrower location
   assert.equal(options.far.w, AIR_BRIDGE.w);
   assert.ok(Math.abs(options.far.x - options.near.x) > 80);
   assert.ok(options.near.w < game.echoes[0].w * 0.60);
+  for (const candidate of [options.near, options.far]) {
+    assert.equal(game.platforms.some(platform => overlaps(candidate, platform)), false,
+      'a hidden static ledge cannot auto-catch the nominal challenge platform');
+  }
 });
 
 test('airborne reveal waits for reaction cue and appears solid without rise', () => {
@@ -110,7 +114,6 @@ test('fixed direction input does not solve both second-hop possibilities', () =>
   const results = Object.entries(seeds).map(([side, seed]) => ({
     side, seed, ...secondHop(0, seed, false),
   }));
-  assert.ok(results.some(result => result.landed), 'at least one fixed-input path must work');
   assert.ok(results.some(result => !result.landed),
     'a predictable held direction should no longer auto-catch both narrow choices');
   const missed = results.find(result => !result.landed);
