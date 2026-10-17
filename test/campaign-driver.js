@@ -17,11 +17,15 @@ export function playRoom(level, { flow = false } = {}) {
     const x = game.player.x;
     for (let i = 0; i < n; i++) step({ left: game.player.x > x, right: game.player.x <= x });
   }
-  function jumpTo(id, x, facing) {
+  function jumpTo(id, x, facing, { launchFacing = null } = {}) {
     step();
     for (let i = 0; i < 130; i++) {
       const target = solidRects(game).find(p => p.id === id);
       let dir = game.player.x < x ? 1 : -1;
+      // In the new takeoff-stamp mode, returning via a retained echo can
+      // intentionally launch facing *away* from it, avoiding a fresh bridge
+      // intercepting the return. After launch, steer toward the real target.
+      if (i === 0 && launchFacing !== null) dir = launchFacing;
       const feet = game.player.y + PLAYER.h;
       if (target && game.player.vy >= 0 && feet <= target.y + 8 && feet + (game.player.vy + PHYSICS.gravity * dt) * dt >= target.y) dir = facing;
       step({ jump: true, left: dir < 0, right: dir > 0 });
@@ -60,7 +64,7 @@ export function playRoom(level, { flow = false } = {}) {
     for (let i = 0; i < 24; i++) step({ right: true });
     wait(360); // Return after every unanchored outbound bridge has disappeared.
     assert.equal(game.echoes.length, 1);
-    jumpTo(reusedAnchor, 390, 1);
+    jumpTo(reusedAnchor, 390, 1, { launchFacing: -1 });
     assert.equal(game.player.supportId, reusedAnchor, 'reuse the outbound anchor on the return trip');
     wait();
     const returning = `echo-${game.nextId}`;
