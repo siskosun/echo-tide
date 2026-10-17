@@ -1,15 +1,14 @@
-/** Hard-mode landing challenge. Preview options, reveal the actual bridge mid-flight. */
+/** Jump targets are selected and shown BEFORE takeoff, never midair. */
 export const AIR_BRIDGE = Object.freeze({
-  // Separate near and far catch windows; one fixed horizontal hold cannot
-  // overlap both candidate rectangles at the same descent crossing.
   w: 80,
-  // Width 80. Near/far must sit outside the 28px launch footprint,
-  // yet remain catchable within the 620px/s jump arc at 240px/s sideways.
-  near: 72,
+  // At launch the 28px player must cross a visibly meaningful gap.
+  // The 620px/s jump arc at 240px/s horizontal speed can still catch
+  // either landing when its surface is 76px above the takeoff platform.
+  near: 135,
   far: 170,
-  backtrackWhenBlocked: 72,
-  revealAfter: 0.16,
-  maxCandidates: 2,
+  backtrackWhenBlocked: 135,
+  // World-edge clamping must not compress a jump into a tiny step.
+  minLaunchGap: 72,
 });
 
 /**
