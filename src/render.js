@@ -1,4 +1,4 @@
-import { ECHO, KILL_Y, WORLD, predictEcho, airborneCandidates } from './game.js';
+import { ECHO, KILL_Y, WORLD, predictEcho, airborneForecast } from './game.js';
 
 const FONT = '"WenQuanYi Micro Hei", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif';
 
@@ -118,35 +118,22 @@ function drawPlatform(ctx, platform) {
 
 function drawLaunchForecast(ctx, game) {
   if (game.challengeEnabled && game.route?.revealed) {
-    // Ground: fresh planning positions. Air: the takeoff contract stays
-    // anchored to the SAME world coordinates until an actual landing.
+    // Preview and real takeoff use the SAME deterministic selection.
     const cue = game.airborneCue;
-    const options = cue?.options ?? airborneCandidates(game);
-    for (const [side, rect] of [['near', options.near], ['far', options.far]]) {
-      const stone = rect.role === 'stone';
-      const faded = cue?.phase === 'revealed' && cue.selected !== side;
-      const confirmed = cue?.phase === 'revealed' && cue.selected === side;
-      ctx.save();
-      ctx.globalAlpha = faded ? 0.22 : 1;
-      ctx.strokeStyle = stone ? '#9af2e2' : confirmed ? '#e8ffad' : '#ffe7b5';
-      ctx.fillStyle = stone ? 'rgba(56, 148, 133, 0.06)' : 'rgba(255, 231, 181, 0.04)';
-      ctx.lineWidth = confirmed ? 3 : 2;
-      ctx.setLineDash(stone ? [] : [6, 6]);
-      if (!stone) ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-      ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
-      ctx.restore();
-    }
-    // Persistent small legend: dashed yellow = temporary; solid teal = stone.
-    // The unused choice fades rather than disappearing midair.
-    const minY = Math.min(options.near.y, options.far.y);
-    const leftX = Math.min(options.near.x, options.far.x);
-    const msg = cue?.phase === 'revealed'
-      ? '已选定 · 调整落点'
-      : cue?.phase === 'pending'
-        ? '待揭晓 · 保持两条路线'
-        : '两个落点 · 起跳后定一个';
-    label(ctx, Math.max(155, Math.min(WORLD.w - 155, leftX + 130)), Math.max(106, minY - 24),
-      msg, '#ffe7b5');
+    const forecast = cue ?? airborneForecast(game);
+    const { options, selected } = forecast;
+    const rect = options[selected];
+    const stone = rect.role === 'stone';
+    ctx.save();
+    ctx.strokeStyle = stone ? '#9af2e2' : '#e8ffad';
+    ctx.fillStyle = stone ? 'rgba(56, 148, 133, 0.10)' : 'rgba(232, 255, 173, 0.14)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash(stone ? [] : [6, 4]);
+    if (!stone) ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+    ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+    ctx.restore();
+    label(ctx, Math.max(130, Math.min(WORLD.w - 130, rect.x + rect.w / 2)),
+      Math.max(106, rect.y - 24), '目标已确定 · 看准再跳', '#e8ffad');
     return;
   }
   const rect = game.airborneCue?.phase === 'tutorial'
@@ -160,7 +147,7 @@ function drawLaunchForecast(ctx, game) {
   ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
   ctx.restore();
   label(ctx, rect.x + rect.w / 2, rect.y - 18,
-    game.challengeEnabled ? '首跳教学：固定宽桥 · 落脚后始终双候选' : '起跳立即成桥', '#ffe7b5');
+    game.challengeEnabled ? '首跳教学：固定宽桥 · 落脚后预告真实目标' : '起跳立即成桥', '#ffe7b5');
 }
 
 function drawEcho(ctx, game, echo) {
@@ -309,11 +296,11 @@ function drawHud(ctx, game) {
   ctx.fillStyle = '#b7e4dc';
   ctx.fillText(game.echoMode === 'flow'
     ? (game.challengeEnabled && game.route?.revealed
-      ? `挑战：每跳双候选 · 本次必须接住新桥 · 黄虚框回声 / 绿实框石台`
+      ? `挑战：起跳前目标已确定 · 瞄准落点再跳 · 本跳新桥须本跳接住`
       : game.route?.revealed
         ? `潮印在${game.route.side === 'left' ? '左岸 ←' : '右岸 →'} · 起跳即成桥 · E 锚定 / R 重试`
         : game.challengeEnabled
-          ? '首跳：固定宽桥教学 · 此后每跳双候选（黄虚框/绿实框）'
+          ? '首跳：固定宽桥教学 · 此后每跳提前显示确定落点'
           : '起跳即成桥 · 首次落上回声才会揭示本局潮印位置')
     : `←→ 移动 · 空格 跳跃 · R 重开${game.level.anchor ? ' · E 锚定脚下回声' : ''}    回声：${ECHO.rise} 秒成形 / ${ECHO.solid} 秒消失 / 最多 ${ECHO.maxAlive} 块`, 24, 40);
 
