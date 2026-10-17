@@ -4,6 +4,17 @@ One-screen browser platformer. The first jump creates a safe wide echo; subseque
 
 单屏平台跳跃。首跳是宽桥教学，之后每跳在起跳前就显示唯一真实落点，玩家瞄准后起跳；取消空中随机二选一。首块回声落脚后再揭示潮印路线。
 
+## EXP-5: 踏浪冲刺手感试验 / surf feel pilot
+
+**真实用户意见：**「流畅，但不有趣」。先前已解决原地刷桥、边缘叠梯、小幅摆动攀高等通关捷径，但流畅本身不能证明游戏具有乐趣。此次不提高随机性，而是引入一种**可由玩家主动触发**、可通过精确落脚恢复的短促空中冲刺。此方案只是待真人体验检验的设计假说。
+
+- **试验：踏浪冲刺（网页默认）**：每次最多储存一次潮跃。角色腾空后按 Shift 或 J，水平额外加速约 0.14 秒；不增加跳跃高度，不生成额外平台。
+- **精准落脚回充**：在本次起跳生成的回声平台中央浅绿色亮心区域内落地，潮跃回充并延续精准连击。落回旧桥、落在边缘均不能反复刷充能。没充能也可以正常通关。
+- **对照：原版连跳**：关卡菜单的「玩法」可以切回之前已验证流畅的版本。切换两种玩法**保持相同的关卡种子**，便于对照，不修改 A 组或 game-exp 的人工 Review。
+- **判断标准**：观察能否自然理解并主动使用冲刺、能否形成连续精准接桥，以及不靠强制要求玩家使用新能力时，是否更愿意再玩一局。自动测试只能证明操控边界和通关性，不能宣称有趣。
+
+
+
 ## How to play
 
 ```bash
@@ -17,11 +28,14 @@ Open the URL Vite prints (usually `http://localhost:5173`).
 | --- | --- |
 | Move | Arrow keys or A / D |
 | Jump | Space, W, or Up Arrow |
+| One short air surge / 踏浪冲刺 (experimental variant) | Shift or J in midair |
+| Recover surge / 补充潮能 | Land near the bright center of a newly caught echo |
 | Anchor / release the solid echo underfoot (rooms 2–3) | E |
 | Restart current room | R; Enter / click canvas after a fall |
 | Next room after winning | Enter or the Next button |
 | Replay any room | Room selector above the canvas |
 | Difficulty | Challenge (browser default) or Standard (for learning/comparison) |
+| Feel variant / 玩法对照 | Surf (default) or original jumping; switching retains route seed |
 
 Face the intended direction **before takeoff**. The first jump creates a wide, fixed tutorial bridge. On later Challenge jumps, the actual narrow target (or reachable real stone) is marked **before takeoff** and remains fixed throughout the jump; no target is randomly revealed in midair. The bridge appears solid on takeoff. Only a bridge landed on during its creating jump can be kept, so an idle jump cannot bank a platform. At world edges or above a nearly coincident narrow echo, no new bridge is created: a warning tells you to reposition or turn around. Small edge overlaps between adjacent narrow platforms are still allowed for normal jump tolerance. The departing earned bridge stays solid during the jump. A safe return to an expiring old bridge grants one bounded minimum 1.8-second retry, not infinite renewals. Rooms 2 and 3 retain one movable anchor (E); every room retains the 90-second limit.
 
@@ -37,7 +51,7 @@ Each room can be retried independently or selected from the menu. Progress is se
 
 ### Playtest focus
 
-Observe whether real players **correct their direction during flight** in hard mode without mistaking the cue for random punishment, whether they change destinations after the tide seal is revealed, and whether the minimal preview remains visually readable. Ask them to explain which seal appeared and whether the route choice felt meaningful, then separately check anchor understanding and reused bridges. Automated completion establishes reachability, not human understanding or fun; those remain the game-exp human Review.
+Observe whether a player discovers Shift/J without lengthy explanation, whether landing-center marks are legible, whether optional bursts enable intentional corrections rather than accidental overshoots, and whether a successful precision chain motivates replay. Compare surf vs original controls within the same room/seed before concluding anything about enjoyment. Ask separately about seal routes and anchor understanding. Automated completion proves reachability, not human enjoyment or preference; these remain the game-exp human Review.
 
 ## EXP-5: mid-run route-reveal pilot
 
