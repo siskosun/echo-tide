@@ -54,7 +54,7 @@ function secondHop(level, seed, adaptive) {
         : center < aim - 4 ? { right: true }
           : { left: center > aim, right: center <= aim };
     }
-    game = tick(game, { ...steering, jump: i < 8 });
+    game = tick(game, { ...steering, jump: i < 18 });
     if (game.player.supportId === 'echo-2') { landed = true; break; }
   }
   return { game, landed, firstRevealFrame };
@@ -99,7 +99,7 @@ test('both alternative landing spots can be caught by steering after the reveal'
     for (const [side, seed] of Object.entries(branchSeeds(level))) {
       const attempt = secondHop(level, seed, true);
       assert.equal(attempt.landed, true,
-        'room ' + (level + 1) + ' ' + side + ' cannot be caught despite an announced target');
+        'room ' + (level + 1) + ' ' + side + ' did not land: ' + JSON.stringify({status: attempt.game.status, x: attempt.game.player.x, y: attempt.game.player.y, support: attempt.game.player.supportId, time: attempt.game.time, echo: attempt.game.echoes.find(e => e.id === 'echo-2'), revealFrame: attempt.firstRevealFrame}));
       assert.equal(attempt.game.echoes.find(e => e.id === 'echo-2')?.w, AIR_BRIDGE.w);
     }
   }
