@@ -154,12 +154,18 @@ export function airborneCandidates(game) {
     ? supportTop(game, player.supportId) ?? player.y + PLAYER.h
     : player.y + PLAYER.h;
   const centerX = player.x + PLAYER.w / 2;
-  return {
-    near: echoRect(centerX, surfaceTop, player.facing, game.platforms,
-      { width: AIR_BRIDGE.w, shiftX: AIR_BRIDGE.near }),
-    far: echoRect(centerX, surfaceTop, player.facing, game.platforms,
-      { width: AIR_BRIDGE.w, shiftX: AIR_BRIDGE.far }),
-  };
+  const near = echoRect(centerX, surfaceTop, player.facing, game.platforms,
+    { width: AIR_BRIDGE.w, shiftX: AIR_BRIDGE.near });
+  let far = echoRect(centerX, surfaceTop, player.facing, game.platforms,
+    { width: AIR_BRIDGE.w, shiftX: AIR_BRIDGE.far });
+  // A static ledge intercepting an airborne bridge makes the player land on
+  // the old route instead of executing a genuine catch. Move this alternative
+  // behind the launch point while keeping it physically reachable.
+  if (game.platforms.some(platform => overlaps(far, inflate(platform, 4)))) {
+    far = echoRect(centerX, surfaceTop, player.facing, game.platforms,
+      { width: AIR_BRIDGE.w, shiftX: -AIR_BRIDGE.backtrackWhenBlocked });
+  }
+  return { near, far };
 }
 
 function queueAirborneBridge(game) {
