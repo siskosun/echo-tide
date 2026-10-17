@@ -1,7 +1,19 @@
 import { WORLD, LEVELS, createGame, update } from './game.js';
 import { draw } from './render.js';
+import { attachTouchControls } from './touch_controls.js';
 
 const canvas = document.getElementById('game');
+const touch = attachTouchControls({
+  buttons: {
+    left: document.getElementById('touch-left'),
+    right: document.getElementById('touch-right'),
+    jump: document.getElementById('touch-jump'),
+    anchor: document.getElementById('touch-anchor'),
+  },
+  windowTarget: window,
+  documentTarget: document,
+  onPress: () => canvas.focus({ preventScroll: true }),
+});
 const dpr = Math.min(window.devicePixelRatio || 1, 2);
 canvas.width = Math.round(WORLD.w * dpr);
 canvas.height = Math.round(WORLD.h * dpr);
@@ -26,10 +38,11 @@ let buttonRestart = false;
 roomSelect.addEventListener('change', () => {
   game = createGame({ level: Number(roomSelect.value) });
   keys.clear();
+  touch.reset();
   canvas.focus();
 });
-document.getElementById('restart').addEventListener('click', () => { buttonRestart = true; canvas.focus(); });
-nextButton.addEventListener('click', () => { pointerNext = true; canvas.focus(); });
+document.getElementById('restart').addEventListener('click', () => { touch.reset(); buttonRestart = true; canvas.focus(); });
+nextButton.addEventListener('click', () => { touch.reset(); pointerNext = true; canvas.focus(); });
 
 const held = {
   left: () => keys.has('ArrowLeft') || keys.has('KeyA'),
@@ -72,13 +85,14 @@ function frame(now) {
   const next = nextDown && !nextLatch;
   nextLatch = nextDown;
   pointerNext = false;
+  const touchInput = touch.read();
   const input = {
-    left: held.left(),
-    right: held.right(),
-    jump: held.jump(),
+    left: held.left() || touchInput.left,
+    right: held.right() || touchInput.right,
+    jump: held.jump() || touchInput.jump,
     restart,
     next,
-    anchor: keys.has('KeyE'),
+    anchor: keys.has('KeyE') || touchInput.anchor,
   };
   // Fixed simulation steps keep echo timing/collision consistent at any refresh rate.
   accumulator += dt;
@@ -105,6 +119,7 @@ function syncUi() {
   roomSelect.value = String(game.levelIndex);
   hint.textContent = game.level.hint;
   nextButton.hidden = game.status !== 'won' || game.levelIndex === LEVELS.length - 1;
+  document.getElementById('touch-anchor').hidden = !game.level.anchor;
   status.textContent = game.status === 'lost' ? '坠落或超时，按 R 重试本关。' : game.status === 'won'
     ? (game.levelIndex === LEVELS.length - 1 ? '三关完成！可以从关卡菜单再次挑战。' : '本关完成！按 Enter 进入下一关。')
     : `${game.level.title} · ${game.objectiveCollected ? '前往出口' : `先取得${game.level.objective.name}`}`;
