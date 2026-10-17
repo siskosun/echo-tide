@@ -309,7 +309,7 @@ function drawHud(ctx, game) {
   ctx.fillStyle = '#b7e4dc';
   ctx.fillText(game.echoMode === 'flow'
     ? (game.challengeEnabled && game.route?.revealed
-      ? `挑战：每跳双候选 · 黄虚框是回声 / 绿实框是石台 · 空中确认落点`
+      ? `挑战：每跳双候选 · 本次必须接住新桥 · 黄虚框回声 / 绿实框石台`
       : game.route?.revealed
         ? `潮印在${game.route.side === 'left' ? '左岸 ←' : '右岸 →'} · 起跳即成桥 · E 锚定 / R 重试`
         : game.challengeEnabled
