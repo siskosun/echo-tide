@@ -6,12 +6,12 @@ One-screen browser platformer. The first jump creates a safe wide echo; subseque
 
 ## EXP-5: 踏浪冲刺手感试验 / surf feel pilot
 
-**真实用户意见：**「流畅，但不有趣」。先前已解决原地刷桥、边缘叠梯、小幅摆动攀高等通关捷径，但流畅本身不能证明游戏具有乐趣。此次不提高随机性，而是引入一种**可由玩家主动触发**、可通过精确落脚恢复的短促空中冲刺。此方案只是待真人体验检验的设计假说。
+**真实用户意见：**「流畅，但不有趣」；最新补充：「冲刺只能使用一次。另外平台不会移动，冲刺没有增加乐趣。」修正假设：一次性且只能精准回充的冲刺造成挫败，静止平台又缺乏冲刺的时机价值。改为安全落地必恢复冲刺、部分新窄桥按完全预告的短轨道移动，成功接住后立即停住。保留原始输入对照；是否改善乐趣仍待真人判断。
 
-- **试验：踏浪冲刺（网页默认）**：每次最多储存一次潮跃。角色腾空后按 Shift 或 J，水平额外加速约 0.14 秒；不增加跳跃高度，不生成额外平台。
-- **精准落脚回充**：在本次起跳生成的回声平台中央浅绿色亮心区域内落地，潮跃回充并延续精准连击。落回旧桥、落在边缘均不能反复刷充能。没充能也可以正常通关。
-- **对照：原版连跳**：关卡菜单的「玩法」可以切回之前已验证流畅的版本。切换两种玩法**保持相同的关卡种子**，便于对照，不修改 A 组或 game-exp 的人工 Review。
-- **判断标准**：观察能否自然理解并主动使用冲刺、能否形成连续精准接桥，以及不靠强制要求玩家使用新能力时，是否更愿意再玩一局。自动测试只能证明操控边界和通关性，不能宣称有趣。
+- **试验：踏浪追桥（网页默认）**：每个飞行回合可按 Shift/J 一次短促水平冲刺。安全落地（包括旧桥或石台）即自动回充。冲刺不增加跳跃高度，也不生成额外平台。
+- **预告移动轨道**：完成固定宽桥教学后，后续偶数编号窄回声在生成当次飞行中沿起跳前可见的 40 单位短轨道往返，周期固定 1.28 秒；到达地图边缘或不满足安全间距时保持静止。移动轨迹和真实碰撞同步，接住后停住，不能在空中改变目标或事后储存新桥。
+- **精准连击**：浅绿色亮心表示有技巧奖励的中央落脚区域，只累计连击，不再决定能否再次冲刺。落回旧桥或踩边缘都能获得下一跳的冲刺，但不获得精准连击。
+- **对照与验收**：菜单「对照：原版连跳」保持同一关卡随机种子，不改变 A 组或人工 Review。重点比较移动轨道是否可预判、追桥时机是否有趣、冲刺是否自然变成有意义的修正，以及玩家是否主动重试。自动测试只能验证可达性与输入响应，不宣称有趣。
 
 
 
@@ -29,13 +29,13 @@ Open the URL Vite prints (usually `http://localhost:5173`).
 | Move | Arrow keys or A / D |
 | Jump | Space, W, or Up Arrow |
 | One short air surge / 踏浪冲刺 (experimental variant) | Shift or J in midair |
-| Recover surge / 补充潮能 | Land near the bright center of a newly caught echo |
+| Recover surge / 补充潮能 | Any safe landing; one use per actual jump |
 | Anchor / release the solid echo underfoot (rooms 2–3) | E |
 | Restart current room | R; Enter / click canvas after a fall |
 | Next room after winning | Enter or the Next button |
 | Replay any room | Room selector above the canvas |
 | Difficulty | Challenge (browser default) or Standard (for learning/comparison) |
-| Feel variant / 玩法对照 | Surf (default) or original jumping; switching retains route seed |
+| Feel variant / 玩法对照 | Moving rail chase (default) or original stationary jumping; switching retains route seed |
 
 Face the intended direction **before takeoff**. The first jump creates a wide, fixed tutorial bridge. On later Challenge jumps, the actual narrow target (or reachable real stone) is marked **before takeoff** and remains fixed throughout the jump; no target is randomly revealed in midair. The bridge appears solid on takeoff. Only a bridge landed on during its creating jump can be kept, so an idle jump cannot bank a platform. At world edges or above a nearly coincident narrow echo, no new bridge is created: a warning tells you to reposition or turn around. Small edge overlaps between adjacent narrow platforms are still allowed for normal jump tolerance. The departing earned bridge stays solid during the jump. A safe return to an expiring old bridge grants one bounded minimum 1.8-second retry, not infinite renewals. Rooms 2 and 3 retain one movable anchor (E); every room retains the 90-second limit.
 
@@ -51,7 +51,7 @@ Each room can be retried independently or selected from the menu. Progress is se
 
 ### Playtest focus
 
-Observe whether a player discovers Shift/J without lengthy explanation, whether landing-center marks are legible, whether optional bursts enable intentional corrections rather than accidental overshoots, and whether a successful precision chain motivates replay. Compare surf vs original controls within the same room/seed before concluding anything about enjoyment. Ask separately about seal routes and anchor understanding. Automated completion proves reachability, not human enjoyment or preference; these remain the game-exp human Review.
+Observe whether a player sees the short moving rail BEFORE jumping, correctly anticipates its deterministic swing, can regain dash on every safe landing, and uses the extra burst to catch a moving echo rather than as an unrelated speed boost. Compare against the same-seed stationary version, including whether timing improves replay motivation; do not equate technical completion with fun. Record real player feedback separately from automation.
 
 ## EXP-5: mid-run route-reveal pilot
 
