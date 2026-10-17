@@ -1,5 +1,6 @@
 /** Echo Tide / 叠影潮 — headless rules for the one-screen prototype. */
 import { LEVELS } from './levels.js';
+import { tideShiftAt } from './tide_variation.js';
 export { LEVELS } from './levels.js';
 
 export const WORLD = { w: 960, h: 540 };
@@ -66,6 +67,8 @@ export function createGame(options = {}) {
     time: 0,
     timeLeft: TIME_LIMIT,
     echoesEnabled: options.echoes !== false,
+    // The classic practice route remains a frozen landing-stamp technical control.
+    echoMode: levelIndex === 'classic' ? 'legacy' : 'flow',
     nextId: 1,
     airTime: 0,
     coyote: PHYSICS.coyote,
@@ -118,13 +121,23 @@ export function echoRect(centerX, surfaceTop, facing, platforms = PLATFORMS) {
   };
 }
 
-/** Where an echo would be stamped if the player landed at the current spot. */
+/** Preview the next take-off echo before the player commits to jump. */
 export function predictEcho(game) {
   const player = game.player;
   const surfaceTop = player.grounded
     ? supportTop(game, player.supportId) ?? player.y + PLAYER.h
     : player.y + PLAYER.h;
-  return echoRect(player.x + PLAYER.w / 2, surfaceTop, player.facing, game.platforms);
+  return flowEchoRect(game, player.x + PLAYER.w / 2, surfaceTop, player.facing);
+}
+
+/** Use the same time-dependent forecast for preview and actual launch. */
+function flowEchoRect(game, centerX, surfaceTop, facing) {
+  const rect = echoRect(centerX, surfaceTop, facing, game.platforms);
+  if (game.echoMode !== 'flow') return rect;
+  return {
+    ...rect,
+    x: clamp(rect.x + tideShiftAt(game.time), 18, WORLD.w - ECHO.w - 18),
+  };
 }
 
 export function solidRects(game) {
@@ -180,6 +193,11 @@ export function update(game, input = {}, dt = 1 / 60) {
   else game.coyote = Math.max(0, game.coyote - dt);
 
   if (game.jumpBuffer > 0 && (player.grounded || game.coyote > 0)) {
+    const launchTop = player.grounded
+      ? supportTop(game, player.supportId) ?? player.y + PLAYER.h
+      : player.y + PLAYER.h;
+    // One echo per *actual* jump (not keydown). A failed airborne press makes none.
+    if (game.echoMode === 'flow' && game.echoesEnabled) stamp(game, player, launchTop);
     player.vy = -PHYSICS.jumpSpeed;
     player.grounded = false;
     player.supportId = null;
@@ -227,7 +245,7 @@ export function update(game, input = {}, dt = 1 / 60) {
     game.airTime = 0;
     game.events.push({ type: 'land', id: landedOn.id });
     if (String(landedOn.id).startsWith('echo')) game.stats.echoLandings += 1;
-    if (game.echoesEnabled && air >= PHYSICS.minAirToStamp) stamp(game, player, landedOn.y);
+    if (game.echoesEnabled && game.echoMode === 'legacy' && air >= PHYSICS.minAirToStamp) stamp(game, player, landedOn.y);
   } else {
     game.airTime = 0;
   }
@@ -254,7 +272,7 @@ export function update(game, input = {}, dt = 1 / 60) {
 }
 
 function stamp(game, player, surfaceTop) {
-  const rect = echoRect(player.x + PLAYER.w / 2, surfaceTop, player.facing, game.platforms);
+  const rect = flowEchoRect(game, player.x + PLAYER.w / 2, surfaceTop, player.facing);
   game.stats[player.facing < 0 ? 'leftStamps' : 'rightStamps'] += 1;
   const existing = game.echoes.find((echo) => (
     echo.phase !== 'sink'
