@@ -1,6 +1,7 @@
 /** Echo Tide / 叠影潮 — headless rules for the one-screen prototype. */
 import { LEVELS } from './levels.js';
 import { chooseRoute } from './route_fork.js';
+import { AIR_BRIDGE, airborneChoice } from './airborne_bridge.js';
 export { LEVELS } from './levels.js';
 
 export const WORLD = { w: 960, h: 540 };
@@ -77,6 +78,8 @@ export function createGame(options = {}) {
     echoesEnabled: options.echoes !== false,
     // The classic practice route remains a frozen landing-stamp technical control.
     echoMode: levelIndex === 'classic' ? 'legacy' : 'flow',
+    challengeEnabled: flowCampaign && options.challenge === true,
+    pendingEcho: null,
     nextId: 1,
     airTime: 0,
     coyote: PHYSICS.coyote,
@@ -109,22 +112,23 @@ export function playerRect(player) {
   return { x: player.x, y: player.y, w: PLAYER.w, h: PLAYER.h };
 }
 
-export function echoRect(centerX, surfaceTop, facing, platforms = PLATFORMS) {
-  let x = centerX + facing * ECHO.shiftX - ECHO.w / 2;
+export function echoRect(centerX, surfaceTop, facing, platforms = PLATFORMS,
+  { width = ECHO.w, shiftX = ECHO.shiftX } = {}) {
+  let x = centerX + facing * shiftX - width / 2;
   let y = surfaceTop + ECHO.shiftY;
-  x = clamp(x, 18, WORLD.w - ECHO.w - 18);
+  x = clamp(x, 18, WORLD.w - width - 18);
   y = clamp(y, 48, KILL_Y - 70);
   for (let i = 0; i < 6; i += 1) {
-    const hit = platforms.find((platform) => overlaps({ x, y, w: ECHO.w, h: ECHO.h }, inflate(platform, 4)));
+    const hit = platforms.find((platform) => overlaps({ x, y, w: width, h: ECHO.h }, inflate(platform, 4)));
     if (!hit) break;
     // Join a stone ledge at its surface instead of silently adding jump height.
     y = hit.y;
     break;
   }
   return {
-    x: clamp(x, 18, WORLD.w - ECHO.w - 18),
+    x: clamp(x, 18, WORLD.w - width - 18),
     y: clamp(y, 48, KILL_Y - 70),
-    w: ECHO.w,
+    w: width,
     h: ECHO.h,
   };
 }
@@ -143,6 +147,39 @@ function flowEchoRect(game, centerX, surfaceTop, facing) {
   return echoRect(centerX, surfaceTop, facing, game.platforms);
 }
 
+/** Both narrow targets are visible before takeoff, but neither is preselected. */
+export function airborneCandidates(game) {
+  const player = game.player;
+  const surfaceTop = player.grounded
+    ? supportTop(game, player.supportId) ?? player.y + PLAYER.h
+    : player.y + PLAYER.h;
+  const centerX = player.x + PLAYER.w / 2;
+  return {
+    near: echoRect(centerX, surfaceTop, player.facing, game.platforms,
+      { width: AIR_BRIDGE.w, shiftX: AIR_BRIDGE.near }),
+    far: echoRect(centerX, surfaceTop, player.facing, game.platforms,
+      { width: AIR_BRIDGE.w, shiftX: AIR_BRIDGE.far }),
+  };
+}
+
+function queueAirborneBridge(game) {
+  const options = airborneCandidates(game);
+  const selected = airborneChoice(game.seed, game.levelIndex, game.nextId);
+  game.pendingEcho = {
+    options, selected, facing: game.player.facing,
+    due: game.time + AIR_BRIDGE.revealAfter,
+  };
+}
+
+function revealAirborneBridge(game) {
+  if (!game.pendingEcho || game.time < game.pendingEcho.due) return;
+  const { options, selected, facing } = game.pendingEcho;
+  game.pendingEcho = null;
+  // This is a solid platform, without a secondary rising or wobbling animation.
+  stamp(game, game.player, options[selected].y, options[selected], facing);
+  game.events.push({ type: 'airborne_reveal', selected });
+}
+
 export function solidRects(game) {
   const rects = game.platforms.map((platform) => ({ ...platform }));
   for (const echo of game.echoes) {
@@ -153,9 +190,9 @@ export function solidRects(game) {
 
 export function update(game, input = {}, dt = 1 / 60) {
   game.events = [];
-  if (input.restart) return createGame({ echoes: game.echoesEnabled, level: game.levelIndex, seed: game.seed });
+  if (input.restart) return createGame({ echoes: game.echoesEnabled, level: game.levelIndex, seed: game.seed, challenge: game.challengeEnabled });
   if (input.next && game.status === 'won' && Number.isInteger(game.levelIndex) && game.levelIndex < LEVELS.length - 1) {
-    return createGame({ echoes: game.echoesEnabled, level: game.levelIndex + 1, seed: game.seed });
+    return createGame({ echoes: game.echoesEnabled, level: game.levelIndex + 1, seed: game.seed, challenge: game.challengeEnabled });
   }
 
   dt = clamp(dt, 0, 1 / 20);
@@ -200,7 +237,10 @@ export function update(game, input = {}, dt = 1 / 60) {
       ? supportTop(game, player.supportId) ?? player.y + PLAYER.h
       : player.y + PLAYER.h;
     // One echo per *actual* jump (not keydown). A failed airborne press makes none.
-    if (game.echoMode === 'flow' && game.echoesEnabled) stamp(game, player, launchTop);
+    if (game.echoMode === 'flow' && game.echoesEnabled) {
+      if (game.challengeEnabled && game.route?.revealed) queueAirborneBridge(game);
+      else stamp(game, player, launchTop);
+    }
     player.vy = -PHYSICS.jumpSpeed;
     player.grounded = false;
     player.supportId = null;
@@ -223,6 +263,7 @@ export function update(game, input = {}, dt = 1 / 60) {
 
   player.grounded = false;
   let landedOn = null;
+  revealAirborneBridge(game);
   if (player.vy >= 0) {
     const feet = player.y + PLAYER.h;
     let best = null;
@@ -284,10 +325,10 @@ export function update(game, input = {}, dt = 1 / 60) {
   return game;
 }
 
-function stamp(game, player, surfaceTop) {
-  const rect = flowEchoRect(game, player.x + PLAYER.w / 2, surfaceTop, player.facing);
+function stamp(game, player, surfaceTop, overrideRect = null, facing = player.facing) {
+  const rect = overrideRect ?? flowEchoRect(game, player.x + PLAYER.w / 2, surfaceTop, facing);
   const phase = game.echoMode === 'flow' ? 'solid' : 'rise';
-  game.stats[player.facing < 0 ? 'leftStamps' : 'rightStamps'] += 1;
+  game.stats[facing < 0 ? 'leftStamps' : 'rightStamps'] += 1;
   const existing = game.echoes.find((echo) => (
     echo.phase !== 'sink'
     && Math.abs(echo.x - rect.x) < 28
