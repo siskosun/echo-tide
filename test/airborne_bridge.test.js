@@ -117,7 +117,7 @@ test('fixed direction input does not solve both second-hop possibilities', () =>
   assert.ok(results.some(result => !result.landed),
     'a predictable held direction should no longer auto-catch both narrow choices');
   const missed = results.find(result => !result.landed);
-  assert.equal(secondHop(0, missed.seed, true).landed, true,
+  assert.equal(secondHop(1, missed.seed, true).landed, true,
     'the missed bridge must be catchable via a live steering response');
 });
 
