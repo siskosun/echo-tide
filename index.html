@@ -52,6 +52,46 @@
         box-shadow: 0 22px 50px rgba(0, 0, 0, 0.35), 0 0 0 1px #24555a;
       }
       canvas:focus { outline: 2px solid #8ef6df; outline-offset: 3px; }
+      .touch-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-top: 12px;
+        touch-action: none;
+      }
+      .touch-cluster { display: flex; gap: 10px; align-items: center; }
+      .touch-control {
+        min-width: 62px;
+        min-height: 62px;
+        padding: 10px;
+        font-size: 1.02rem;
+        font-weight: 700;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        border: 2px solid #79aba5;
+        background: #134d51;
+      }
+      .touch-control[aria-pressed="true"] {
+        background: #3c8b7a;
+        border-color: #c6ffe9;
+      }
+      .touch-control:focus-visible { outline: 3px solid #e7fff8; outline-offset: 2px; }
+      @media (min-width: 1000px) and (hover: hover) and (pointer: fine) {
+        .touch-controls { display: none; }
+      }
+      @media (max-height: 500px) and (orientation: landscape) {
+        body { padding: 4px 8px 6px; }
+        h1 { font-size: 1rem; margin-bottom: 0; }
+        .lede, .foot { display: none; }
+        .toolbar { margin: 4px 0; gap: 5px; }
+        .toolbar button, .toolbar select { padding: 4px 7px; }
+        canvas { width: min(100%, 470px); margin-inline: auto; }
+        .touch-controls { margin-top: 4px; }
+        .touch-control { min-width: 52px; min-height: 52px; padding: 6px; }
+      }
       .foot {
         margin: 12px 0 0;
         color: var(--muted);
@@ -66,9 +106,19 @@
       <p class="lede">用落下的回声铺一条会升起、再沉没的路。 Build a path from landings that rise, then sink.</p>
       <div class="toolbar"><label for="room">关卡</label><select id="room"><option value="0">01 折返接力</option><option value="1">02 留一条退路</option><option value="2">03 借路归航</option></select><button id="restart" type="button">重试本关</button><button id="next" type="button" hidden>下一关 →</button></div>
       <canvas id="game" width="960" height="540" tabindex="0" aria-label="叠影潮游戏。方向键或 AD 移动，空格跳跃，E 锚定，R 重开。"></canvas>
+      <div class="touch-controls" role="group" aria-label="触摸游戏控制">
+        <div class="touch-cluster" aria-label="左右移动">
+          <button id="touch-left" class="touch-control" type="button" aria-label="按住向左移动" aria-pressed="false">← 左</button>
+          <button id="touch-right" class="touch-control" type="button" aria-label="按住向右移动" aria-pressed="false">右 →</button>
+        </div>
+        <div class="touch-cluster" aria-label="跳跃与回声">
+          <button id="touch-anchor" class="touch-control" type="button" aria-label="锚定或释放回声平台" aria-pressed="false" hidden>锚 E</button>
+          <button id="touch-jump" class="touch-control" type="button" aria-label="按住跳跃" aria-pressed="false">跳跃</button>
+        </div>
+      </div>
       <p id="status" class="foot" role="status" aria-live="polite"></p>
       <p id="hint" class="foot"></p>
-      <p class="foot">键盘：←→ / A D 移动 · 空格 Space / W / ↑ 跳跃 · E 锚定/松开脚下回声 · R 重开 · 通关后 Enter 下一关。最多锚定一块；换锚时旧平台恢复剩余计时。切换标签页自动暂停。</p>
+      <p class="foot">触屏：可同时按住方向和跳跃，第二、三关可以按「锚 E」控制回声。键盘：←→ / A D 移动 · 空格 Space / W / ↑ 跳跃 · E 锚定/松开脚下回声 · R 重开 · 通关后 Enter 下一关。最多锚定一块；换锚时旧平台恢复剩余计时。切换标签页自动暂停。</p>
     </div>
     <script type="module" src="/src/main.js"></script>
   </body>
