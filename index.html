@@ -63,7 +63,7 @@
   <body>
     <div class="wrap">
       <h1>Echo Tide <span>/ 叠影潮</span></h1>
-      <p class="lede">虚线提前预告桥位，起跳后直接成桥。首次踩上回声后，才会揭示本局左右两岸的潮印位置。</p>
+      <p class="lede">首跳使用确定的宽桥。之后每跳持续显示两个候选落点，起跳后约 0.16 秒确认其中一个；玩家空中调整方向，落稳后继续前进。</p>
       <div class="toolbar"><label for="room">关卡</label><select id="room"><option value="0">01 折返接力</option><option value="1">02 留一条退路</option><option value="2">03 借路归航</option></select><label for="difficulty">操作</label><select id="difficulty"><option value="hard" selected>挑战：空中二选一</option><option value="standard">入门：确定平台</option></select><button id="restart" type="button">重试本关</button><button id="next" type="button" hidden>下一关 →</button></div>
       <canvas id="game" width="960" height="540" tabindex="0" aria-label="叠影潮游戏。方向键或 AD 移动，空格跳跃，E 锚定，R 重开。"></canvas>
       <p id="status" class="foot" role="status" aria-live="polite"></p>
