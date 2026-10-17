@@ -147,18 +147,24 @@ for (const challenge of [true, false]) {
   }
 }
 
-test('narrow echo cannot stack vertically over a nearly coincident older echo', () => {
+test('narrow echoes require a real gap and cannot stack into an older echo', () => {
   const game = edgeFixture({ challenge: true });
   game.player.x = 500;
   game.player.facing = 1;
   game.player.y = 402 - PLAYER.h;
   game.echoes[0].x = 500;
-  assert.equal(canPlaceFlowEcho(game,
-    { x: 530, y: 326, w: 80, h: 14, role: 'echo' }), false,
-  'strong horizontal overlap must not mint a stair even off the world edge');
-  assert.equal(canPlaceFlowEcho(game,
-    { x: 568, y: 326, w: 80, h: 14, role: 'echo' }), true,
-  'lightly overlapping stepping stones must remain possible');
+  const rect = x => ({ x, y: 326, w: AIR_BRIDGE.w, h: ECHO.h, role: 'echo' });
+  assert.equal(canPlaceFlowEcho(game, rect(568)), false,
+    'old shallow offset creates a tiny shortcut and must now fail');
+  assert.equal(canPlaceFlowEcho(game, rect(602)), true,
+    'an attainable but meaningful horizontal jump must remain possible');
+  game.echoes.push({ id: 'echo-other', x: 575, y: 250, w: 80,
+    h: 14, phase: 'solid', age: 0 });
+  assert.equal(canPlaceFlowEcho(game, rect(602)), false,
+    'a narrow bridge must not form an upward stack over older echoes');
+  game.echoes[1].x = 670;
+  assert.equal(canPlaceFlowEcho(game, rect(602)), true,
+    'slight overlap with a different earned echo remains tolerable');
 });
 
 test('when the seeded target would stack, fallback is decided before takeoff', () => {
@@ -168,7 +174,7 @@ test('when the seeded target would stack, fallback is decided before takeoff', (
     x: 600, y: 478 - PLAYER.h, vx: 0, vy: 0,
     facing: 1, grounded: true, supportId: 'test-dock',
   });
-  game.echoes = [{ id: 'echo-1', x: 646, y: 402, w: 80, h: 14,
+  game.echoes = [{ id: 'echo-1', x: 685, y: 402, w: 80, h: 14,
     phase: 'solid', age: 0 }];
   game.nextId = 2;
   game.route.revealed = true;
@@ -200,6 +206,116 @@ test('blocked jump is visibly explained without ghost landing outlines', () => {
     set: () => true,
   });
   draw(ctx, game);
-  assert.ok(labels.some(t => t.includes('不能叠桥')));
+  assert.ok(labels.some(t => t.includes('跳跃空间不足')));
   assert.ok(!labels.some(t => t.includes('目标已确定')));
+});
+
+test('all visible narrow-echo targets demand substantial movement, even at the edge', () => {
+  for (const level of [0, 1, 2]) {
+    for (const side of [-1, 1]) {
+      for (const seed of [0, 1, 2, 7]) {
+        const game = createGame({ level, seed, challenge: true });
+        game.route.revealed = true;
+        game.player.facing = side;
+        const positions = [40, 110, 200, 400, 600, 800, 920];
+        for (const x of positions) {
+          game.player.x = x;
+          const forecast = airborneForecast(game);
+          if (forecast.blocked || forecast.target.role === 'stone') continue;
+          const target = forecast.target;
+          const foot = game.player;
+          const gap = Math.max(target.x - (foot.x + PLAYER.w),
+            foot.x - (target.x + target.w));
+          assert.ok(gap >= AIR_BRIDGE.minLaunchGap,
+            `level=${level} facing=${side} x=${x}: target gap ${gap}`);
+        }
+      }
+    }
+  }
+});
+
+function firstEchoForChallenge(level, seed) {
+  const game = createGame({ level, seed, challenge: true });
+  const moveRight = level === 1;
+  for (let i = 0; i < 90 && !game.route.revealed; i++) {
+    tick(game, { right: moveRight, left: !moveRight, jump: i < 18 });
+    assert.equal(game.status, 'playing');
+  }
+  assert.equal(game.route.revealed, true);
+  assert.equal(game.player.supportId, 'echo-1');
+  for (let i = 0; i < 15; i++) tick(game);
+  assert.equal(game.player.vx, 0);
+  return game;
+}
+
+test('small left/right wiggles cannot bank upward progress on repeated challenge jumps', () => {
+  for (const level of [1, 2]) {
+    const game = firstEchoForChallenge(level, 3);
+    const originalY = game.player.y;
+    const originalId = game.player.supportId;
+    const originalLandings = game.stats.echoLandings;
+    for (let hop = 0; hop < 2; hop++) {
+      const originX = game.player.x;
+      const intended = airborneForecast(game);
+      assert.equal(intended.blocked, false);
+      assert.equal(intended.target.role, 'echo');
+      tick(game, { jump: true });
+      const created = game.flightBridgeId;
+      assert.ok(created);
+      let returned = false;
+      for (let frame = 0; frame < 90 && game.status === 'playing'; frame++) {
+        // Player holds no useful direction: only tiny, alternating taps.
+        const dx = game.player.x - originX;
+        tick(game, {
+          left: dx > 6,
+          right: dx <= 6,
+          jump: frame < 18,
+        });
+        assert.ok(Math.abs(game.player.x - originX) <= 12,
+          'the simulated player must not secretly run toward the target');
+        if (game.player.grounded) { returned = true; break; }
+      }
+      assert.equal(returned, true);
+      assert.equal(game.player.supportId, originalId,
+        'a tiny wiggle must land back on the existing bridge');
+      assert.equal(game.player.y, originalY,
+        'tiny wiggles must never raise the player to a new level');
+      assert.ok(!solidRects(game).some(rect => rect.id === created),
+        'a missed platform cannot be banked for another jump');
+      for (let i = 0; i < 15; i++) tick(game);
+    }
+    assert.equal(game.stats.echoLandings, originalLandings + 2,
+      'returning to the existing echo is allowed, but grants no height');
+  }
+});
+
+test('both advance targets stay catchable by moving decisively during the same jump', () => {
+  for (const level of [1, 2]) {
+    const tested = new Set();
+    for (let seed = 0; seed < 30 && tested.size < 2; seed++) {
+      const game = firstEchoForChallenge(level, seed);
+      const plan = airborneForecast(game);
+      if (plan.blocked || plan.target.role !== 'echo' || tested.has(plan.selected)) continue;
+      tested.add(plan.selected);
+      tick(game, { jump: true });
+      const bridge = game.flightBridgeId;
+      assert.ok(bridge);
+      let reached = false;
+      for (let frame = 0; frame < 80 && game.status === 'playing'; frame++) {
+        const center = game.player.x + PLAYER.w / 2;
+        const aim = plan.target.x + plan.target.w / 2;
+        tick(game, {
+          left: center > aim + 2,
+          right: center <= aim + 2,
+          jump: frame < 18,
+        });
+        if (game.player.supportId === bridge) { reached = true; break; }
+        if (game.player.grounded) break;
+      }
+      assert.equal(reached, true,
+        `level=${level} selected=${plan.selected}: a visible target must be catchable`);
+      assert.equal(game.echoes.find(e => e.id === bridge)?.phase, 'solid');
+    }
+    assert.deepEqual([...tested].sort(), ['far', 'near']);
+  }
 });
