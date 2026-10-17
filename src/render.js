@@ -1,5 +1,4 @@
 import { ECHO, KILL_Y, WORLD, predictEcho } from './game.js';
-import { tideDirectionAt } from './tide_variation.js';
 
 const FONT = '"WenQuanYi Micro Hei", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif';
 
@@ -10,7 +9,7 @@ export function draw(ctx, game) {
   squash = Math.max(0, squash - 1 / 60);
   for (const event of game.events) {
     if (event.type === 'land') squash = 0.12;
-    if (event.type === 'stamp') burst(game.player.x + 14, game.player.y + 36, '#b8fff0', 10);
+    if (event.type === 'stamp' && game.echoMode === 'legacy') burst(game.player.x + 14, game.player.y + 36, '#b8fff0', 10);
     if (event.type === 'solid') {
       const echo = game.echoes.find((item) => item.id === event.id);
       if (echo) burst(echo.x + echo.w / 2, echo.y, '#efe7ff', 14);
@@ -118,8 +117,6 @@ function drawPlatform(ctx, platform) {
 
 function drawLaunchForecast(ctx, game) {
   const rect = predictEcho(game);
-  const shift = tideDirectionAt(game.time);
-  const text = shift === 'right' ? '潮流向右' : shift === 'left' ? '潮流向左' : '潮流平缓';
   ctx.save();
   ctx.strokeStyle = '#ffe7b5';
   ctx.fillStyle = 'rgba(255, 231, 181, 0.13)';
@@ -128,7 +125,7 @@ function drawLaunchForecast(ctx, game) {
   ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
   ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
   ctx.restore();
-  label(ctx, rect.x + rect.w / 2, rect.y - 18, `下次起跳 · ${text}`, '#ffe7b5');
+  label(ctx, rect.x + rect.w / 2, rect.y - 18, '起跳立即成桥', '#ffe7b5');
 }
 
 function drawEcho(ctx, game, echo) {
@@ -137,7 +134,7 @@ function drawEcho(ctx, game, echo) {
   const t = rising ? echo.age / ECHO.rise : sinking ? echo.age / ECHO.sink : echo.age / ECHO.solid;
   const y = rising
     ? echo.y + (1 - ease(t)) * ECHO.riseFrom
-    : sinking
+    : sinking && game.echoMode === 'legacy'
       ? echo.y + t * 48
       : echo.y;
   const alpha = rising ? 0.28 + 0.4 * t : sinking ? 1 - t : 1;
@@ -205,7 +202,7 @@ function drawExit(ctx, game) {
   if (!game.objectiveCollected) {
     ctx.fillStyle = '#173e44';
     ctx.fillRect(gate.x + 6, gate.y + 6, gate.w - 12, gate.h - 6);
-    label(ctx, gate.x + gate.w / 2, gate.y + 40, '待取物', '#ffe7b5');
+    label(ctx, gate.x + gate.w / 2, gate.y + 40, game.route && !game.route.revealed ? '潮印待揭晓' : '待取潮印', '#ffe7b5');
   }
 }
 
@@ -213,7 +210,7 @@ function drawSigns(ctx, game) {
   if (game.noticeTime > 0) label(ctx, WORLD.w / 2, 106, game.notice, '#ffe7b5');
   else if (game.stats.stamps === 0) {
     const start = game.platforms[0];
-    label(ctx, start.x + start.w / 2, start.y + 36, game.player.facing < 0 ? '← 朝左落地造路' : '朝右落地造路 →', '#d9fff6');
+    label(ctx, start.x + start.w / 2, start.y + 36, game.player.facing < 0 ? '← 起跳造桥，落地揭晓潮印' : '起跳造桥，落地揭晓潮印 →', '#d9fff6');
   }
 }
 
@@ -276,7 +273,9 @@ function drawHud(ctx, game) {
   ctx.font = `12px ${FONT}`;
   ctx.fillStyle = '#b7e4dc';
   ctx.fillText(game.echoMode === 'flow'
-    ? `起跳即造桥 · 虚线是当前预测落点 · 潮流位置随时机变化 · E 锚定 / R 重试`
+    ? (game.route?.revealed
+      ? `潮印在${game.route.side === 'left' ? '左岸 ←' : '右岸 →'} · 起跳即成桥 · E 锚定 / R 重试`
+      : '起跳即成桥 · 首次落上回声才会揭示本局潮印位置')
     : `←→ 移动 · 空格 跳跃 · R 重开${game.level.anchor ? ' · E 锚定脚下回声' : ''}    回声：${ECHO.rise} 秒成形 / ${ECHO.solid} 秒消失 / 最多 ${ECHO.maxAlive} 块`, 24, 40);
 
   const seconds = Math.ceil(game.timeLeft);
