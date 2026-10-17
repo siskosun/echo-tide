@@ -80,6 +80,8 @@ export function createGame(options = {}) {
     echoMode: levelIndex === 'classic' ? 'legacy' : 'flow',
     challengeEnabled: flowCampaign && options.challenge === true,
     pendingEcho: null,
+    airborneCue: null,
+    airborneTurn: 0,
     nextId: 1,
     airTime: 0,
     coyote: PHYSICS.coyote,
@@ -158,23 +160,38 @@ export function airborneCandidates(game) {
     { width: AIR_BRIDGE.w, shiftX: AIR_BRIDGE.near });
   let far = echoRect(centerX, surfaceTop, player.facing, game.platforms,
     { width: AIR_BRIDGE.w, shiftX: AIR_BRIDGE.far });
-  // A static ledge intercepting an airborne bridge makes the player land on
-  // the old route instead of executing a genuine catch. Move this alternative
-  // behind the launch point while keeping it physically reachable.
+  const stone = reachableStone(game);
+  if (stone) {
+    // Every advanced jump keeps two visible choices. The existing ledge is
+    // presented as an honest safe candidate, rather than silently switching
+    // the landing rules and hiding the two previews.
+    if (game.platforms.some(platform => overlaps(near, inflate(platform, 4)))) {
+      near = echoRect(centerX, surfaceTop, player.facing, game.platforms,
+        { width: AIR_BRIDGE.w, shiftX: -AIR_BRIDGE.backtrackWhenBlocked });
+    }
+    return {
+      near: { ...near, role: 'echo' },
+      far: { x: stone.x, y: stone.y, w: stone.w, h: stone.h,
+        id: stone.id, role: 'stone' },
+    };
+  }
+  // Else both options are temporary bridges. A far target is moved away from
+  // stone geometry instead of painting a ghost on top of real rock.
   if (game.platforms.some(platform => overlaps(far, inflate(platform, 4)))) {
     far = echoRect(centerX, surfaceTop, player.facing, game.platforms,
       { width: AIR_BRIDGE.w, shiftX: -AIR_BRIDGE.backtrackWhenBlocked });
   }
-  return { near, far };
+  return { near: { ...near, role: 'echo' },
+    far: { ...far, role: 'echo' } };
 }
 
-/** A clearly visible fixed stone within a physically reachable jump is the target. */
-export function hasReachableStone(game) {
-  if (!game.player.grounded) return false;
+/** Find an actual reachable stone, never an inferred invisible step. */
+function reachableStone(game) {
+  if (!game.player.grounded) return null;
   const top = supportTop(game, game.player.supportId);
-  if (top === null) return false;
+  if (top === null) return null;
   const maxRise = maxJumpHeight();
-  return game.platforms.some(platform => {
+  return game.platforms.find(platform => {
     if (platform.id === game.player.supportId) return false;
     const rise = top - platform.y;
     if (rise < 8 || rise > maxRise) return false;
@@ -184,12 +201,22 @@ export function hasReachableStone(game) {
     const left = Math.min(game.player.x, endX);
     const right = Math.max(game.player.x + PLAYER.w, endX + PLAYER.w);
     return right > platform.x + 3 && left < platform.x + platform.w - 3;
-  });
+  }) ?? null;
+}
+
+export function hasReachableStone(game) {
+  return reachableStone(game) !== null;
 }
 
 function queueAirborneBridge(game) {
   const options = airborneCandidates(game);
-  const selected = airborneChoice(game.seed, game.levelIndex, game.nextId);
+  const selected = airborneChoice(
+    game.seed, game.levelIndex, game.nextId + game.airborneTurn,
+  );
+  game.airborneTurn += 1;
+  // Persist *the same* two outlines through ascent, reveal and descent.
+  // No fresh preview is recomputed from the airborne player's changing x.
+  game.airborneCue = { options, selected: null, phase: 'pending' };
   game.pendingEcho = {
     options, selected, facing: game.player.facing,
     due: game.time + AIR_BRIDGE.revealAfter,
@@ -200,9 +227,14 @@ function revealAirborneBridge(game) {
   if (!game.pendingEcho || game.time < game.pendingEcho.due) return;
   const { options, selected, facing } = game.pendingEcho;
   game.pendingEcho = null;
-  // This is a solid platform, without a secondary rising or wobbling animation.
-  stamp(game, game.player, options[selected].y, options[selected], facing);
-  game.events.push({ type: 'airborne_reveal', selected });
+  if (game.airborneCue) {
+    game.airborneCue.phase = 'revealed';
+    game.airborneCue.selected = selected;
+  }
+  const target = options[selected];
+  // An existing stone is always solid: never stamp a duplicate over it.
+  if (target.role !== 'stone') stamp(game, game.player, target.y, target, facing);
+  game.events.push({ type: 'airborne_reveal', selected, target: target.role });
 }
 
 export function solidRects(game) {
@@ -264,9 +296,9 @@ export function update(game, input = {}, dt = 1 / 60) {
     // One echo per *actual* jump (not keydown). A failed airborne press makes none.
     if (game.echoMode === 'flow' && game.echoesEnabled) {
       if (game.challengeEnabled && game.route?.revealed) {
-        // Do not spawn visually redundant narrow echoes over an existing
-        // directly jumpable stone. The stone itself is the readable route.
-        if (!hasReachableStone(game)) queueAirborneBridge(game);
+        // Same two-choice rule on every advanced takeoff, including jumps
+        // toward existing ledges. No position-dependent mode switch.
+        queueAirborneBridge(game);
       } else stamp(game, player, launchTop);
     }
     player.vy = -PHYSICS.jumpSpeed;
@@ -313,6 +345,7 @@ export function update(game, input = {}, dt = 1 / 60) {
   if (!player.grounded) {
     game.airTime += dt;
   } else if (!startedGrounded && landedOn) {
+    game.airborneCue = null;
     const air = game.airTime;
     game.airTime = 0;
     game.events.push({ type: 'land', id: landedOn.id });
