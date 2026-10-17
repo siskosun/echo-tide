@@ -54,6 +54,9 @@ export function playRoom(level, { flow = false, seed = 0 } = {}) {
       assert.equal(game.objectiveCollected, true, 'must visit revealed left-bank seal');
       // Approach the anchored echo again using only movement + jump inputs.
       for (let i = 0; i < 130 && game.player.x < 280; i++) step({ right: true });
+      // Returning from the lower dock stamps y=402, so a second jump from
+      // the retained bridge is required to create the subsequent y=326 tier.
+      jumpTo(game.anchorId, 440, 1);
     }
     jumpTo(game.anchorId, 440, 1); wait(); jumpTo(echo(326).id, 575, 1); wait();
     jumpTo('goal', 740, 1);
@@ -68,7 +71,8 @@ export function playRoom(level, { flow = false, seed = 0 } = {}) {
     reusedAnchor = game.anchorId;
     jumpTo('relic', 230, -1);
     for (let i = 0; i < 45; i++) step({ left: true });
-    assert.equal(game.objectiveCollected, true, 'collect on the fixed ledge');
+    assert.equal(game.objectiveCollected, game.route?.side === 'left',
+      'only the revealed left-bank route should collect the relic waypoint');
     for (let i = 0; i < 24; i++) step({ right: true });
     wait(360); // Return after every unanchored outbound bridge has disappeared.
     assert.equal(game.echoes.length, 1);
