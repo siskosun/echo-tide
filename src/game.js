@@ -1,6 +1,6 @@
 /** Echo Tide / 叠影潮 — headless rules for the one-screen prototype. */
 import { LEVELS } from './levels.js';
-import { tideShiftAt } from './tide_variation.js';
+import { chooseRoute } from './route_fork.js';
 export { LEVELS } from './levels.js';
 
 export const WORLD = { w: 960, h: 540 };
@@ -54,12 +54,20 @@ export function createGame(options = {}) {
     platforms: PLATFORMS, exit: EXIT, spawn: { ...SPAWN, facing: 1 }, anchor: false,
   } : LEVELS[levelIndex];
   const start = level.platforms[0];
+  const flowCampaign = levelIndex !== 'classic';
+  const seed = options.seed ?? 0;
+  if (!Number.isSafeInteger(seed) || seed < 0 || seed > 0xffffffff) {
+    throw new RangeError('Route seed must be an unsigned 32-bit integer');
+  }
   return {
     levelIndex,
-    level,
+    // Hide the actual objective until the player first lands on an echo.
+    level: flowCampaign ? { ...level, objective: null } : level,
+    seed,
+    route: flowCampaign ? { revealed: false, side: null } : null,
     anchorId: null,
     prevAnchor: false,
-    objectiveCollected: !level.objective,
+    objectiveCollected: flowCampaign ? false : !level.objective,
     notice: '',
     noticeTime: 0,
     status: 'playing',
@@ -130,14 +138,9 @@ export function predictEcho(game) {
   return flowEchoRect(game, player.x + PLAYER.w / 2, surfaceTop, player.facing);
 }
 
-/** Use the same time-dependent forecast for preview and actual launch. */
+/** A promised location never moves; the branching route is separate from bridge motion. */
 function flowEchoRect(game, centerX, surfaceTop, facing) {
-  const rect = echoRect(centerX, surfaceTop, facing, game.platforms);
-  if (game.echoMode !== 'flow') return rect;
-  return {
-    ...rect,
-    x: clamp(rect.x + tideShiftAt(game.time), 18, WORLD.w - ECHO.w - 18),
-  };
+  return echoRect(centerX, surfaceTop, facing, game.platforms);
 }
 
 export function solidRects(game) {
@@ -150,9 +153,9 @@ export function solidRects(game) {
 
 export function update(game, input = {}, dt = 1 / 60) {
   game.events = [];
-  if (input.restart) return createGame({ echoes: game.echoesEnabled, level: game.levelIndex });
+  if (input.restart) return createGame({ echoes: game.echoesEnabled, level: game.levelIndex, seed: game.seed });
   if (input.next && game.status === 'won' && Number.isInteger(game.levelIndex) && game.levelIndex < LEVELS.length - 1) {
-    return createGame({ echoes: game.echoesEnabled, level: game.levelIndex + 1 });
+    return createGame({ echoes: game.echoesEnabled, level: game.levelIndex + 1, seed: game.seed });
   }
 
   dt = clamp(dt, 0, 1 / 20);
@@ -244,7 +247,17 @@ export function update(game, input = {}, dt = 1 / 60) {
     const air = game.airTime;
     game.airTime = 0;
     game.events.push({ type: 'land', id: landedOn.id });
-    if (String(landedOn.id).startsWith('echo')) game.stats.echoLandings += 1;
+    if (String(landedOn.id).startsWith('echo')) {
+      game.stats.echoLandings += 1;
+      if (game.route && !game.route.revealed && game.echoesEnabled) {
+        const chosen = chooseRoute(game.seed, game.levelIndex);
+        game.route.revealed = true;
+        game.route.side = chosen.side;
+        game.level.objective = chosen.objective;
+        game.events.push({ type: 'route_reveal', side: chosen.side });
+        notify(game, `潮印已显现 · ${chosen.side === 'left' ? '向左岸' : '向右岸'}！`);
+      }
+    }
     if (game.echoesEnabled && game.echoMode === 'legacy' && air >= PHYSICS.minAirToStamp) stamp(game, player, landedOn.y);
   } else {
     game.airTime = 0;
@@ -254,7 +267,7 @@ export function update(game, input = {}, dt = 1 / 60) {
 
   advanceEchoes(game, dt);
 
-  if (!game.objectiveCollected && overlaps(playerRect(player), game.level.objective)) {
+  if (!game.objectiveCollected && game.level.objective && overlaps(playerRect(player), game.level.objective)) {
     game.objectiveCollected = true;
     game.events.push({ type: 'collect' });
     notify(game, game.levelIndex === 0 ? '潮灯已点亮 · 朝右造路！' : '核心已取得 · 返回右侧出口！');
@@ -273,6 +286,7 @@ export function update(game, input = {}, dt = 1 / 60) {
 
 function stamp(game, player, surfaceTop) {
   const rect = flowEchoRect(game, player.x + PLAYER.w / 2, surfaceTop, player.facing);
+  const phase = game.echoMode === 'flow' ? 'solid' : 'rise';
   game.stats[player.facing < 0 ? 'leftStamps' : 'rightStamps'] += 1;
   const existing = game.echoes.find((echo) => (
     echo.phase !== 'sink'
@@ -284,7 +298,7 @@ function stamp(game, player, surfaceTop) {
     if (existing.id === game.anchorId) return;
     existing.x = rect.x;
     existing.y = rect.y;
-    existing.phase = 'rise';
+    existing.phase = phase;
     existing.age = 0;
     game.stats.stamps += 1;
     game.events.push({ type: 'stamp', id: existing.id, refreshed: true });
@@ -294,7 +308,7 @@ function stamp(game, player, surfaceTop) {
   const echo = {
     id: `echo-${game.nextId}`,
     ...rect,
-    phase: 'rise',
+    phase,
     age: 0,
   };
   game.nextId += 1;
