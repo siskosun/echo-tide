@@ -54,6 +54,17 @@ for (let level = 0; level < LEVELS.length; level++) {
   });
 }
 
+for (let level = 0; level < LEVELS.length; level += 1) {
+  test('room ' + (level + 1) + ' alternate hidden route has an input-only winning path', () => {
+    const result = playRoom(level, { seed: 1 });
+    assert.equal(result.game.status, 'won');
+    assert.equal(result.game.objectiveCollected, true);
+    assert.equal(result.game.route.revealed, true);
+    assert.equal(result.game.route.side, level === 1 ? 'left' : 'right');
+    assert.ok(result.game.stats.echoLandings >= 2);
+  });
+}
+
 function anchorFixture() {
   const game = createGame({ level: 1 });
   game.echoes = [
