@@ -1,4 +1,4 @@
-import { ECHO, KILL_Y, WORLD, SURF, predictEcho, airborneForecast, canPlaceFlowEcho } from './game.js';
+import { ECHO, KILL_Y, WORLD, SURF, predictEcho, airborneForecast, canPlaceFlowEcho, echoMotionPlan } from './game.js';
 
 const FONT = '"WenQuanYi Micro Hei", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif';
 
@@ -131,8 +131,14 @@ function drawLaunchForecast(ctx, game) {
       return;
     }
     const { options, selected } = forecast;
-    const rect = options[selected];
-    const stone = rect.role === 'stone';
+    const active = game.flightBridgeId
+      ? game.echoes.find(echo => echo.id === game.flightBridgeId) : null;
+    const rect = active ?? options[selected];
+    const stone = options[selected].role === 'stone';
+    // The ghost follows the REAL moving collision surface during flight.
+    // Before takeoff the thin rail exposes the entire deterministic sweep.
+    const motion = active?.motion ?? (game.player.grounded
+      ? echoMotionPlan(game, rect) : null);
     ctx.save();
     ctx.strokeStyle = stone ? '#9af2e2' : '#e8ffad';
     ctx.fillStyle = stone ? 'rgba(56, 148, 133, 0.10)' : 'rgba(232, 255, 173, 0.14)';
@@ -147,8 +153,10 @@ function drawLaunchForecast(ctx, game) {
       ctx.fillRect(rect.x + (rect.w - zone) / 2, rect.y - 2, zone, 5);
     }
     ctx.restore();
+    if (motion?.active) drawMotionRail(ctx, motion, rect);
     label(ctx, Math.max(130, Math.min(WORLD.w - 130, rect.x + rect.w / 2)),
-      Math.max(106, rect.y - 24), '目标已确定 · 向前横跳', '#e8ffad');
+      Math.max(106, rect.y - 24),
+      motion?.active ? '沿亮轨移动 · 看准时机接桥' : '目标已确定 · 向前横跳', '#e8ffad');
     return;
   }
   const rect = game.airborneCue?.phase === 'tutorial'
@@ -170,6 +178,25 @@ function drawLaunchForecast(ctx, game) {
   ctx.restore();
   label(ctx, rect.x + rect.w / 2, rect.y - 18,
     game.challengeEnabled ? '首跳教学：固定宽桥 · 落脚后预告真实目标' : '起跳立即成桥', '#ffe7b5');
+}
+
+/** Thin static guide only; no visual arrival animation or fake landing option. */
+function drawMotionRail(ctx, motion, rect) {
+  const y = rect.y + rect.h + 10;
+  const from = motion.startX + rect.w / 2;
+  const to = from + motion.facing * motion.travel;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(174, 251, 220, 0.47)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(from, y);
+  ctx.lineTo(to, y);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(174, 251, 220, 0.68)';
+  ctx.fillRect(from - 2, y - 3, 4, 6);
+  ctx.fillRect(to - 2, y - 3, 4, 6);
+  ctx.restore();
 }
 
 function drawEcho(ctx, game, echo) {
@@ -329,7 +356,7 @@ function drawHud(ctx, game) {
   ctx.font = `12px ${FONT}`;
   ctx.fillStyle = '#b7e4dc';
   ctx.fillText(game.surfEnabled
-    ? `踏浪冲刺：Shift/J 空中加速 · 踩新桥中央亮心补能 · 潮能${game.surgeCharge ? '●' : '○'} · 连击${game.precisionChain}`
+    ? `踏浪追桥：Shift/J 每跳可冲刺 · 落地自动恢复 · 亮心累积连击 · 潮能${game.surgeCharge ? '●' : '○'} · 连击${game.precisionChain}`
     : game.echoMode === 'flow'
     ? (game.challengeEnabled && game.route?.revealed
       ? ((game.airborneCue?.phase === 'blocked' || (game.player.grounded && airborneForecast(game).blocked))
