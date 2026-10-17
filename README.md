@@ -1,8 +1,8 @@
 # Echo Tide / 叠影潮
 
-One-screen browser platformer. In EXP-5, the first **takeoff** creates a wide, safe echo. The browser defaults to **Airborne Challenge**: subsequent jumps across gaps show two narrow possible landings; approximately 160ms after takeoff, one becomes a solid bridge with no rising animation. If an existing fixed ledge is reachable, its real stone outline becomes one of the TWO persistent choices; no duplicate echo is drawn over rock. Both choices stay visible until landing, even after the midair decision. The player must steer midair. After the first real echo landing, one of two distant **tide seals** appears on a safe ledge; the player must adapt the subsequent route and collect that seal before the exit unlocks. The original three-room geometry, echo expiry and optional anchor are preserved.
+One-screen browser platformer. The first jump creates a safe wide echo; subsequent jump targets are visibly determined BEFORE takeoff and appear immediately on takeoff. The challenge is steering and timing, not midair luck. The hidden left/right tide seal still reveals only after the first echo landing.
 
-单屏平台跳跃。**第一次跳跃是宽平台教学，后续默认空中二选一窄桥**：起跳前显示两个候选范围，离地约 0.16 秒后，其中一块直接变为实体。玩家必须根据实际位置空中调整方向，不播放升起动画。每关第一次踩上回声后才揭示本局潮印位置（左岸或右岸），需根据新目标调整路线、取得潮印才能打开出口。平台依然会过期，第二、三关保留锚定能力。
+单屏平台跳跃。首跳是宽桥教学，之后每跳在起跳前就显示唯一真实落点，玩家瞄准后起跳；取消空中随机二选一。首块回声落脚后再揭示潮印路线。
 
 ## How to play
 
