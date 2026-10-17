@@ -1,6 +1,6 @@
 # Echo Tide / 叠影潮
 
-One-screen browser platformer. In EXP-5, the first **takeoff** creates a wide, safe echo. The browser defaults to **Airborne Challenge**: subsequent jumps show two narrow possible landings; approximately 160ms after takeoff, one becomes a solid bridge with no rising animation. The player must steer midair. After the first real echo landing, one of two distant **tide seals** appears on a safe ledge; the player must adapt the subsequent route and collect that seal before the exit unlocks. The original three-room geometry, echo expiry and optional anchor are preserved.
+One-screen browser platformer. In EXP-5, the first **takeoff** creates a wide, safe echo. The browser defaults to **Airborne Challenge**: subsequent jumps across gaps show two narrow possible landings; approximately 160ms after takeoff, one becomes a solid bridge with no rising animation. If an existing fixed ledge can be reached directly, it takes precedence instead of drawing a duplicate new platform. The player must steer midair. After the first real echo landing, one of two distant **tide seals** appears on a safe ledge; the player must adapt the subsequent route and collect that seal before the exit unlocks. The original three-room geometry, echo expiry and optional anchor are preserved.
 
 单屏平台跳跃。**第一次跳跃是宽平台教学，后续默认空中二选一窄桥**：起跳前显示两个候选范围，离地约 0.16 秒后，其中一块直接变为实体。玩家必须根据实际位置空中调整方向，不播放升起动画。每关第一次踩上回声后才揭示本局潮印位置（左岸或右岸），需根据新目标调整路线、取得潮印才能打开出口。平台依然会过期，第二、三关保留锚定能力。
 
@@ -25,7 +25,7 @@ Open the URL Vite prints (usually `http://localhost:5173`).
 
 Face the intended direction **before takeoff**. The first teaching platform is fully solid immediately. In Challenge mode, later jumps have two stable previews and only one 104-unit-wide landing platform solidifies after a brief visible airborne cue; each exists for 5 seconds before sinking. The bridge no longer shifts based on a predictable tide sine wave. At most four active echoes coexist. Rooms 2–3 let you retain one solid echo with E: its remaining lifetime pauses. Transferring the anchor resumes the old bridge's remaining time. The anchor is protected from capacity eviction, but the room's 90-second timer still runs. Re-stamping an anchored bridge never moves or phases it out.
 
-**面向想造路的方向起跳**。入门模式继续使用可预测的 210 宽平台；挑战模式默认开启，首跳仍是宽平台，随后平台宽度为 104，并在空中判定近/远两个候选中的一个，落脚后 5 秒下沉，最多保留四块。第一块回声落脚后才揭示左岸或右岸潮印，实际试玩每次开局由浏览器生成新种子。第二、三关站在实心回声上按 E，可暂停一块平台的消失计时；换锚时旧平台恢复原有剩余寿命，重复按 E 松锚。房间仍有 90 秒时限。R 随时重开本关；切换浏览器标签页暂停计时。
+**面向想造路的方向起跳**。入门模式继续使用可预测的 210 宽平台；挑战模式默认开启，首跳仍是宽平台，后续确需造桥跨越空隙时，平台宽度为 104，并在空中判定近/远两个候选中的一个；若可直接跳到固定石台，则不重复在石台上造桥。新桥落脚后 5 秒下沉，最多保留四块。第一块回声落脚后才揭示左岸或右岸潮印，实际试玩每次开局由浏览器生成新种子。第二、三关站在实心回声上按 E，可暂停一块平台的消失计时；换锚时旧平台恢复原有剩余寿命，重复按 E 松锚。房间仍有 90 秒时限。R 随时重开本关；切换浏览器标签页暂停计时。
 
 ## Three-room campaign / 三关体验
 
