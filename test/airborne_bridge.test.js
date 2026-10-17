@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AIR_BRIDGE, airborneChoice } from '../src/airborne_bridge.js';
-import { PLAYER, createGame, update, airborneCandidates, overlaps, hasReachableStone } from '../src/game.js';
+import { PLAYER, createGame, update, airborneCandidates, overlaps, hasReachableStone, solidRects } from '../src/game.js';
 import { draw } from '../src/render.js';
 
 const dt = 1 / 60;
@@ -220,6 +220,103 @@ test('same two outlined choices are drawn before, during, and after midair revea
   }
   assert.equal(game.airborneCue.phase, 'revealed');
   snapshot(expected);
+});
+
+test('input-only standing jump cannot bank a new bridge for the next jump', () => {
+  // Repeat the exact reported exploit for BOTH seeded alternatives:
+  // land on teaching echo, stop, jump vertically, wait for the new bridge,
+  // land back on the teaching echo, then try a second jump.
+  for (const [side, seed] of Object.entries(branchSeeds(1))) {
+    let game = firstEchoLanding(1, seed);
+    for (let frame = 0; frame < 14; frame += 1) game = tick(game, {});
+    assert.equal(game.player.supportId, 'echo-1',
+      side + ': neutral input must remain on the teaching bridge');
+    assert.equal(game.player.vx, 0,
+      side + ': standstill exploit must truly start with zero horizontal velocity');
+    const launchX = game.player.x;
+    const launchY = game.player.y;
+    const candidates = airborneCandidates(game);
+    for (const candidate of Object.values(candidates)) {
+      if (candidate.role === 'stone') continue;
+      assert.ok(candidate.x >= launchX + PLAYER.w + 4
+        || candidate.x + candidate.w <= launchX - 4,
+      side + ': narrow bridge must not overlap the stationary takeoff footprint');
+    }
+
+    game = tick(game, { jump: true });
+    assert.ok(game.pendingEcho);
+    let revealed = null;
+    let landedBack = false;
+    for (let frame = 0; frame < 75 && game.status === 'playing'; frame += 1) {
+      game = tick(game, { jump: frame < 18 });
+      revealed ??= game.echoes.find(echo => echo.id === 'echo-2') ?? null;
+      if (game.player.grounded) {
+        assert.equal(game.player.supportId, 'echo-1',
+          side + ': standing jump must return to original bridge');
+        landedBack = true;
+        break;
+      }
+    }
+    assert.ok(revealed, side + ': this test must exercise a REAL newly generated bridge');
+    assert.equal(landedBack, true);
+    assert.equal(game.echoes.find(echo => echo.id === 'echo-2')?.phase, 'sink',
+      side + ': unclaimed new bridge must become intangible on same-jump landing');
+    assert.ok(!solidRects(game).some(rect => rect.id === 'echo-2'),
+      side + ': abandoned bridge cannot remain solid for a later jump');
+    assert.equal(game.flightBridgeId, null);
+    assert.equal(game.airborneCue, null);
+    assert.equal(game.player.x, launchX,
+      side + ': no hidden horizontal movement permitted in the exploit test');
+
+    game = tick(game, { jump: false });
+    game = tick(game, { right: true, jump: true });
+    assert.ok(!solidRects(game).some(rect => rect.id === 'echo-2'),
+      side + ': a second takeoff cannot resurrect a banked bridge');
+  }
+});
+
+test('first wide teaching platform cannot be banked by a vertical jump', () => {
+  let game = createGame({ level: 1, seed: 7, challenge: true });
+  game = tick(game, { jump: true });
+  assert.equal(game.echoes.length, 1);
+  let returned = false;
+  for (let i = 0; i < 80 && game.status === 'playing'; i += 1) {
+    game = tick(game, { jump: i < 18 });
+    if (game.player.grounded) { returned = true; break; }
+  }
+  assert.equal(returned, true);
+  assert.equal(game.player.supportId, 'start');
+  assert.equal(game.echoes[0].phase, 'sink',
+    'even the first tutorial bridge must be caught in the jump that created it');
+  assert.equal(game.route.revealed, false);
+  assert.equal(game.stats.echoLandings, 0);
+});
+
+test('a missed new echo never sinks a previously earned and anchored bridge', () => {
+  let game = firstEchoLanding(1, branchSeeds(1).near);
+  for (let i = 0; i < 14; i += 1) game = tick(game, {});
+  game = tick(game, { anchor: true });
+  assert.equal(game.anchorId, 'echo-1');
+  game = tick(game, { anchor: false, jump: true });
+  for (let i = 0; i < 80 && !game.player.grounded; i += 1) {
+    game = tick(game, { jump: i < 18 });
+  }
+  assert.equal(game.player.supportId, 'echo-1');
+  assert.equal(game.echoes.find(echo => echo.id === 'echo-1')?.phase, 'solid');
+  assert.equal(game.anchorId, 'echo-1');
+  assert.equal(game.echoes.find(echo => echo.id === 'echo-2')?.phase, 'sink');
+});
+
+test('catching the bridge during the creating jump preserves normal next-jump use', () => {
+  for (const [side, seed] of Object.entries(branchSeeds(1))) {
+    const { game, landed } = secondHop(1, seed, true);
+    assert.equal(landed, true, side + ': the actual live correction path should still work');
+    const earned = game.echoes.find(echo => echo.id === 'echo-2');
+    assert.equal(earned?.phase, 'solid',
+      side + ': same-flight landing must preserve the bridge after touchdown');
+    assert.equal(game.flightBridgeId, null);
+    assert.ok(solidRects(game).some(rect => rect.id === 'echo-2'));
+  }
 });
 
 test('actual render announces candidate positions without flashing forming labels', () => {
