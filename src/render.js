@@ -141,10 +141,10 @@ function drawLaunchForecast(ctx, game) {
     const minY = Math.min(options.near.y, options.far.y);
     const leftX = Math.min(options.near.x, options.far.x);
     const msg = cue?.phase === 'revealed'
-      ? '已定桥位 · 调整方向落脚'
+      ? '已选定 · 调整落点'
       : cue?.phase === 'pending'
-        ? '即将揭晓 · 两个落点保持不变'
-        : '双候选：黄虚框=回声 · 绿实框=石台';
+        ? '待揭晓 · 保持两条路线'
+        : '两个落点 · 起跳后定一个';
     label(ctx, Math.max(155, Math.min(WORLD.w - 155, leftX + 130)), Math.max(106, minY - 24),
       msg, '#ffe7b5');
     return;
