@@ -82,6 +82,8 @@ export function createGame(options = {}) {
     pendingEcho: null,
     airborneCue: null,
     airborneTurn: 0,
+    // A Challenge bridge can only be claimed during the takeoff that made it.
+    flightBridgeId: null,
     nextId: 1,
     airTime: 0,
     coyote: PHYSICS.coyote,
@@ -233,7 +235,9 @@ function revealAirborneBridge(game) {
   }
   const target = options[selected];
   // An existing stone is always solid: never stamp a duplicate over it.
-  if (target.role !== 'stone') stamp(game, game.player, target.y, target, facing);
+  if (target.role !== 'stone') {
+    game.flightBridgeId = stamp(game, game.player, target.y, target, facing);
+  }
   game.events.push({ type: 'airborne_reveal', selected, target: target.role });
 }
 
@@ -290,6 +294,7 @@ export function update(game, input = {}, dt = 1 / 60) {
   else game.coyote = Math.max(0, game.coyote - dt);
 
   if (game.jumpBuffer > 0 && (player.grounded || game.coyote > 0)) {
+    game.flightBridgeId = null;
     const launchTop = player.grounded
       ? supportTop(game, player.supportId) ?? player.y + PLAYER.h
       : player.y + PLAYER.h;
@@ -302,7 +307,8 @@ export function update(game, input = {}, dt = 1 / 60) {
       } else {
         const tutorial = game.challengeEnabled && game.route && !game.route.revealed
           ? predictEcho(game) : null;
-        stamp(game, player, launchTop);
+        const created = stamp(game, player, launchTop);
+        if (game.challengeEnabled) game.flightBridgeId = created;
         if (tutorial) {
           // The initial wide-bridge lesson is the only one-candidate jump.
           // Freeze this preview too, so it does not slide with the player.
@@ -356,6 +362,20 @@ export function update(game, input = {}, dt = 1 / 60) {
   if (!player.grounded) {
     game.airTime += dt;
   } else if (!startedGrounded && landedOn) {
+    // A preview is not a bridge that can be banked for the next hop:
+    // only catching the just-created echo with this jump grants its lifespan.
+    // An uncaught echo becomes immediately non-solid and fades out, leaving
+    // previously earned bridges and anchored platforms untouched.
+    if (game.challengeEnabled && game.flightBridgeId
+      && landedOn.id !== game.flightBridgeId) {
+      const missed = game.echoes.find(echo => echo.id === game.flightBridgeId);
+      if (missed && missed.phase === 'solid') {
+        missed.phase = 'sink';
+        missed.age = 0;
+        game.events.push({ type: 'bridge_missed', id: missed.id });
+      }
+    }
+    game.flightBridgeId = null;
     game.airborneCue = null;
     const air = game.airTime;
     game.airTime = 0;
@@ -408,14 +428,14 @@ function stamp(game, player, surfaceTop, overrideRect = null, facing = player.fa
   ));
   if (existing) {
     // A retained bridge must never move or become intangible on a repeat stamp.
-    if (existing.id === game.anchorId) return;
+    if (existing.id === game.anchorId) return null;
     existing.x = rect.x;
     existing.y = rect.y;
     existing.phase = phase;
     existing.age = 0;
     game.stats.stamps += 1;
     game.events.push({ type: 'stamp', id: existing.id, refreshed: true });
-    return;
+    return null; // An existing bridge belongs to a previous successful hop.
   }
 
   const echo = {
@@ -436,6 +456,7 @@ function stamp(game, player, surfaceTop, overrideRect = null, facing = player.fa
     oldest.age = 0;
     game.events.push({ type: 'sink', id: oldest.id, forced: true });
   }
+  return echo.id;
 }
 
 function advanceEchoes(game, dt) {
