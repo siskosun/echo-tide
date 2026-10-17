@@ -31,6 +31,10 @@ export const ECHO = {
   maxAlive: 4,
 };
 
+// A one-time minimum recovery window for a previously earned echo, never
+// a new bridge and never a repeatable clock reset by standing in place.
+export const RECOVERY = Object.freeze({ retrySeconds: 1.8 });
+
 export const TIME_LIMIT = 90;
 export const KILL_Y = 518;
 
@@ -84,6 +88,8 @@ export function createGame(options = {}) {
     airborneTurn: 0,
     // A Challenge bridge can only be claimed during the takeoff that made it.
     flightBridgeId: null,
+    // Keep the platform we jumped FROM available until the landing resolves.
+    takeoffSupportId: null,
     nextId: 1,
     airTime: 0,
     coyote: PHYSICS.coyote,
@@ -295,6 +301,8 @@ export function update(game, input = {}, dt = 1 / 60) {
 
   if (game.jumpBuffer > 0 && (player.grounded || game.coyote > 0)) {
     game.flightBridgeId = null;
+    game.takeoffSupportId = game.challengeEnabled && player.grounded
+      ? player.supportId : null;
     const launchTop = player.grounded
       ? supportTop(game, player.supportId) ?? player.y + PLAYER.h
       : player.y + PLAYER.h;
@@ -376,6 +384,22 @@ export function update(game, input = {}, dt = 1 / 60) {
         notify(game, '这次没接住 · 新桥消散，下一跳重新判位');
       }
     }
+    // A failed jump should not destroy the *already earned* landing platform.
+    // The source support was held during flight; if it is close to expiry,
+    // grant ONE short opportunity to attempt a corrected jump.
+    if (game.challengeEnabled && String(landedOn.id).startsWith('echo')
+      && landedOn.id !== game.flightBridgeId) {
+      const safeEcho = game.echoes.find(echo => echo.id === landedOn.id);
+      if (safeEcho && safeEcho.phase === 'solid' && safeEcho.id !== game.anchorId
+        && !safeEcho.recoveryUsed
+        && safeEcho.age > ECHO.solid - RECOVERY.retrySeconds) {
+        safeEcho.age = ECHO.solid - RECOVERY.retrySeconds;
+        safeEcho.recoveryUsed = true;
+        game.events.push({ type: 'recovery_grace', id: safeEcho.id });
+        notify(game, '落回旧桥 · 留有短暂重试时间，新桥没有储存');
+      }
+    }
+    game.takeoffSupportId = null;
     game.flightBridgeId = null;
     game.airborneCue = null;
     const air = game.airTime;
@@ -452,10 +476,15 @@ function stamp(game, player, surfaceTop, overrideRect = null, facing = player.fa
 
   const risingOrSolid = game.echoes.filter((item) => item.phase !== 'sink');
   if (risingOrSolid.length > ECHO.maxAlive) {
-    const oldest = risingOrSolid.find((item) => item.id !== game.anchorId);
-    oldest.phase = 'sink';
-    oldest.age = 0;
-    game.events.push({ type: 'sink', id: oldest.id, forced: true });
+    // Never evict the surface just launched from: the player may miss this
+    // jump and need it as the only valid landing route back.
+    const oldest = risingOrSolid.find(item => item.id !== game.anchorId
+      && item.id !== game.takeoffSupportId && item.id !== echo.id);
+    if (oldest) {
+      oldest.phase = 'sink';
+      oldest.age = 0;
+      game.events.push({ type: 'sink', id: oldest.id, forced: true });
+    }
   }
   return echo.id;
 }
@@ -464,7 +493,13 @@ function advanceEchoes(game, dt) {
   const kept = [];
   for (const echo of game.echoes) {
     const before = echo.phase;
-    if (echo.id !== game.anchorId) echo.age += dt;
+    if (echo.id !== game.anchorId) {
+      const isTakeoffSupport = game.challengeEnabled && !game.player.grounded
+        && echo.id === game.takeoffSupportId && echo.phase === 'solid';
+      // A departing bridge cannot time out midflight while its owner is
+      // still trying to catch the next one. This is NOT a permanent anchor.
+      if (!isTakeoffSupport) echo.age += dt;
+    }
     let guard = 0;
     while (echo.age >= phaseTime(echo.phase) && guard < 4) {
       echo.age -= phaseTime(echo.phase);
