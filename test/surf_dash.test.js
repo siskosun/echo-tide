@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, update, ECHO, PLAYER, SURF, airborneForecast } from '../src/game.js';
+import { createGame, update, ECHO, PLAYER, SURF, airborneForecast, echoMotionPlan, echoMotionX, solidRects } from '../src/game.js';
 import { draw } from '../src/render.js';
 
 const dt = 1 / 60;
@@ -87,24 +87,24 @@ test('a centered same-flight echo landing refills energy and builds a chain', ()
   assert.equal(game.precisionChain, 1);
   assert.equal(game.stats.preciseLandings, 1);
   assert.equal(game.stats.bestChain, 1);
-  assert.match(game.notice, /潮能已恢复/);
+  assert.match(game.notice, /精准落脚 · 连击 1/);
 });
 
-test('landing outside the bright center earns no charge', () => {
+test('landing outside the bright center refills dash but earns no precision chain', () => {
   const { game, landing } = airborneLandingFixture();
   fallOnto(game, landing, false);
   assert.equal(game.player.supportId, landing.id);
-  assert.equal(game.surgeCharge, 0);
+  assert.equal(game.surgeCharge, 1);
   assert.equal(game.precisionChain, 0);
   assert.equal(game.stats.preciseLandings, 0);
 });
 
-test('bouncing on an old earned bridge never farms free air charges', () => {
+test('landing back on an old earned bridge restores one burst but no chain', () => {
   const { game } = airborneLandingFixture();
   const old = game.echoes.find(e => e.id === 'echo-1');
   fallOnto(game, old, true);
   assert.equal(game.player.supportId, old.id);
-  assert.equal(game.surgeCharge, 0);
+  assert.equal(game.surgeCharge, 1);
   assert.equal(game.precisionChain, 0);
   assert.equal(game.stats.preciseLandings, 0);
 });
@@ -132,9 +132,119 @@ test('the actual canvas labels the skill loop and the available surge', () => {
     set: () => true,
   });
   draw(ctx, game);
-  assert.ok(labels.some(s => s.includes('Shift/J') && s.includes('亮心')));
+  assert.ok(labels.some(s => s.includes('Shift/J') && s.includes('落地自动恢复')));
   assert.ok(labels.some(s => s.includes('潮能●')));
   game.surgeCharge = 0;
   draw(ctx, game);
   assert.ok(labels.some(s => s.includes('潮能○')));
+});
+
+function startSurfChallenge() {
+  const game = createGame({ level: 1, seed: 3, challenge: true, surf: true });
+  for (let i = 0; i < 90 && !game.route.revealed; i++) {
+    tick(game, {right: true, jump: i < 18});
+    assert.equal(game.status, 'playing');
+  }
+  assert.equal(game.player.supportId, 'echo-1');
+  for (let i = 0; i < 15; i++) tick(game);
+  assert.equal(game.player.vx, 0);
+  return game;
+}
+
+test('the first post-tutorial narrow bridge has a pre-shown deterministic moving rail', () => {
+  const game = startSurfChallenge();
+  const forecast = airborneForecast(game);
+  const plan = echoMotionPlan(game, forecast.target);
+  assert.ok(plan, 'first later bridge must actually move in surf variant');
+  assert.equal(plan.elapsed, 0);
+  const startX = forecast.target.x;
+  const endX = startX + plan.facing * plan.travel;
+  assert.equal(echoMotionX(plan, 0), startX);
+  assert.ok(Math.abs(echoMotionX(plan, plan.period / 2) - endX) < 1e-8);
+  assert.ok(Math.abs(echoMotionX(plan, plan.period) - startX) < 1e-8);
+  assert.ok(plan.travel >= 20 && plan.travel <= 50, 'readable and bounded travel');
+  assert.equal(echoMotionPlan({ ...game, surfEnabled: false }, forecast.target), null,
+    'comparison variant has no moving platforms');
+  const original = airborneForecast(game);
+  tick(game, { jump: true });
+  const newId = game.flightBridgeId;
+  assert.ok(newId);
+  const platform = game.echoes.find(e => e.id === newId);
+  assert.ok(platform.motion?.active);
+  assert.equal(platform.motion.startX, original.target.x);
+  let leftStart = false;
+  for (let i = 0; i < 24; i++) {
+    tick(game, { jump: i < 18 });
+    assert.equal(platform.phase, 'solid');
+    assert.ok(platform.x >= Math.min(startX, endX) - 1e-8);
+    assert.ok(platform.x <= Math.max(startX, endX) + 1e-8);
+    if (Math.abs(platform.x - startX) > 15) leftStart = true;
+  }
+  assert.equal(leftStart, true, 'the platform visibly moves while airborne');
+  assert.deepEqual(airborneForecast(game).blocked, false);
+});
+
+test('movement is collision-authoritative, and a caught rail freezes on landing', () => {
+  const { game, landing } = airborneLandingFixture();
+  assert.ok(landing.motion?.active);
+  tick(game, {});
+  const displaced = landing.x;
+  assert.notEqual(displaced, landing.motion.startX);
+  // Simulate the approaching player at the ACTUAL moving landing point.
+  fallOnto(game, landing, true);
+  assert.equal(game.player.supportId, landing.id);
+  assert.equal(landing.motion.active, false);
+  const caughtX = landing.x;
+  for (let i = 0; i < 20; i++) tick(game, {});
+  assert.equal(landing.x, caughtX, 'earned support must not slide the player away');
+  assert.ok(solidRects(game).some(e => e.id === landing.id && e.x === caughtX));
+});
+
+test('every grounded landing resets burst once, never grants unlimited midair bursts', () => {
+  const { game, landing } = airborneLandingFixture();
+  tick(game, { dash: true }); // midair, intentionally spend it
+  if (game.surgeCharge === 1) {
+    tick(game, { dash: false });
+    for (let i = 0; i < 5; i++) tick(game);
+    tick(game, { dash: true });
+  }
+  assert.equal(game.surgeCharge, 0);
+  assert.equal(game.stats.dashes, 1);
+  const before = game.stats.dashes;
+  tick(game, { dash: false });
+  tick(game, { dash: true });
+  assert.equal(game.stats.dashes, before, 'still one use per flight');
+  fallOnto(game, landing, false);
+  assert.equal(game.surgeCharge, 1, 'ordinary landed catch must recharge');
+  // Launch again, spend, land back on earned old support, spend yet again.
+  tick(game, {jump: true, right: false});
+  for (let i = 0; i < 7; i++) tick(game, {jump: true});
+  tick(game, {dash: true});
+  assert.equal(game.stats.dashes, 2);
+  assert.equal(game.surgeCharge, 0);
+  const startingSupport = game.echoes.find(e => e.id === landing.id);
+  fallOnto(game, startingSupport, true);
+  assert.equal(game.surgeCharge, 1);
+  tick(game, {jump: true});
+  for (let i = 0; i < 7; i++) tick(game, {jump: true});
+  tick(game, {dash: true});
+  assert.equal(game.stats.dashes, 3, 'can use burst on successive jumps');
+});
+
+test('moving rail is not a collision shortcut or delayed midair random decision', () => {
+  const game = startSurfChallenge();
+  const forecast = airborneForecast(game);
+  assert.equal(forecast.blocked, false);
+  const x = game.player.x;
+  tick(game, {jump: true});
+  const id = game.flightBridgeId;
+  for (let i = 0; i < 90 && !game.player.grounded; i++) {
+    // Standstill jump never reaches the moving corridor.
+    tick(game, {jump: i < 18});
+    assert.ok(Math.abs(game.player.x - x) < 1e-6);
+  }
+  assert.notEqual(game.player.supportId, id);
+  assert.ok(!solidRects(game).some(platform => platform.id === id),
+    'missed moving echo cannot persist as a banked next jump');
+  assert.ok(game.echoes.filter(e => e.motion?.active).length <= 1);
 });
