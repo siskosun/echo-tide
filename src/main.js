@@ -16,7 +16,7 @@ function newRouteSeed() {
 }
 
 const keys = new Set();
-let game = createGame({ seed: newRouteSeed() });
+let game = createGame({ seed: newRouteSeed(), challenge: true });
 let last = performance.now();
 let restartLatch = false;
 let pointerRestart = false;
@@ -24,17 +24,25 @@ let audio;
 let nextLatch = false;
 let accumulator = 0;
 const roomSelect = document.getElementById('room');
+const difficultySelect = document.getElementById('difficulty');
 const nextButton = document.getElementById('next');
 const status = document.getElementById('status');
 const hint = document.getElementById('hint');
 let uiKey = '';
 let pointerNext = false;
 let buttonRestart = false;
-roomSelect.addEventListener('change', () => {
-  game = createGame({ level: Number(roomSelect.value), seed: newRouteSeed() });
+function restartForMode() {
+  game = createGame({
+    level: Number(roomSelect.value),
+    seed: newRouteSeed(),
+    challenge: difficultySelect.value === 'hard',
+  });
+  uiKey = '';
   keys.clear();
   canvas.focus();
-});
+}
+roomSelect.addEventListener('change', restartForMode);
+difficultySelect.addEventListener('change', restartForMode);
 document.getElementById('restart').addEventListener('click', () => { buttonRestart = true; canvas.focus(); });
 nextButton.addEventListener('click', () => { pointerNext = true; canvas.focus(); });
 
@@ -110,7 +118,7 @@ function frame(now) {
 }
 
 function syncUi() {
-  const key = `${game.levelIndex}:${game.status}:${game.objectiveCollected}:${game.route?.side ?? 'unknown'}`;
+  const key = `${game.levelIndex}:${game.challengeEnabled}:${game.status}:${game.objectiveCollected}:${game.route?.side ?? 'unknown'}`;
   if (uiKey === key) return;
   uiKey = key;
   roomSelect.value = String(game.levelIndex);
