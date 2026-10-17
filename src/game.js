@@ -252,8 +252,8 @@ export function canPlaceFlowEcho(game, rect) {
   // A new bridge directly under the player's horizontal footprint permits
   // a stationary vertical jump to capture it. Even a small intersection does.
   if (horizontalOverlap(rect, playerRect(game.player)) > 1) return false;
-  // Do not generate a second collision surface on an existing fixed ledge.
-  if (game.platforms.some(platform => overlaps(rect, inflate(platform, 2)))) return false;
+  // A fixed stone can share the same top surface with an echo. Joining it
+  // does not create an extra vertical step and is used by existing routes.
   return !game.echoes.some(echo => echo.phase === 'solid'
     && echo.w <= rect.w + 6
     && horizontalOverlap(rect, echo) > Math.min(rect.w, echo.w) * 0.55);
