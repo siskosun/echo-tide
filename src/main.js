@@ -129,7 +129,7 @@ function syncUi() {
   roomSelect.value = String(game.levelIndex);
   styleSelect.value = game.surfEnabled ? 'surf' : 'classic';
   const surfHint = game.surfEnabled
-    ? ' · Shift/J：空中冲刺一次；踩中新回声中央亮心可补充潮能' : '';
+    ? ' · Shift/J：每跳可冲刺一次，任何安全落地后恢复；亮心用于连击' : '';
   hint.textContent = (game.route?.revealed
     ? `${game.level.hint} · 本局潮印：${game.route.side === 'left' ? '左岸' : '右岸'}`
     : game.level.hint) + surfHint;
