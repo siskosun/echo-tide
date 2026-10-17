@@ -47,7 +47,15 @@ export function playRoom(level, { flow = false, seed = 0 } = {}) {
   if (level === 0) {
     jumpTo('start', 605, -1); wait(); jumpTo(echo(402).id, 470, -1); wait();
     jumpTo('relay', 340, 1); wait(); jumpTo('relay', 320, 1); wait();
-    jumpTo(echo(250).id, 457, 1); wait(); jumpTo('goal', 630, 1);
+    // Approach the edge of an EARNED support before the upward rightward hop.
+    // The old hard-coded x=457 aimed short of the visible echo that begins at
+    // x=497 after forbidding stacked platforms; it relied on phantom support.
+    const upper = echo(250);
+    for (let i = 0; i < 40 && game.player.grounded && game.player.x < 350; i++) {
+      step({ right: true });
+    }
+    assert.equal(game.player.grounded, true, 'the short run-up must stay on a real ledge');
+    jumpTo(upper.id, upper.x + 12, 1); wait(); jumpTo('goal', 630, 1);
     for (let i = 0; i < 60 && game.status === 'playing'; i++) step({ right: true });
   } else if (level === 1) {
     jumpTo('start', 290, 1); wait(); jumpTo(echo(402).id, 425, 1);
