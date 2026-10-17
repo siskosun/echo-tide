@@ -83,7 +83,7 @@ export function createGame(options = {}) {
     // The classic practice route remains a frozen landing-stamp technical control.
     echoMode: levelIndex === 'classic' ? 'legacy' : 'flow',
     challengeEnabled: flowCampaign && options.challenge === true,
-    pendingEcho: null,
+    pendingEcho: null, // Legacy shape only: no deferred midair decision.
     airborneCue: null,
     airborneTurn: 0,
     // A Challenge bridge can only be claimed during the takeoff that made it.
@@ -157,7 +157,7 @@ function flowEchoRect(game, centerX, surfaceTop, facing) {
   return echoRect(centerX, surfaceTop, facing, game.platforms);
 }
 
-/** Both narrow targets are visible before takeoff, but neither is preselected. */
+/** Candidate geometry is stable for a given grounded position and facing. */
 export function airborneCandidates(game) {
   const player = game.player;
   const surfaceTop = player.grounded
@@ -216,33 +216,27 @@ export function hasReachableStone(game) {
   return reachableStone(game) !== null;
 }
 
-function queueAirborneBridge(game) {
+/**
+ * One known target, previewable BEFORE committing a jump. The two-position
+ * seed only introduces variation between hops, never a midair coin flip.
+ * Pure: repeated forecasts do not consume randomness or alter the game.
+ */
+export function airborneForecast(game) {
   const options = airborneCandidates(game);
   const selected = airborneChoice(
     game.seed, game.levelIndex, game.nextId + game.airborneTurn,
   );
-  game.airborneTurn += 1;
-  // Persist *the same* two outlines through ascent, reveal and descent.
-  // No fresh preview is recomputed from the airborne player's changing x.
-  game.airborneCue = { options, selected: null, phase: 'pending' };
-  game.pendingEcho = {
-    options, selected, facing: game.player.facing,
-    due: game.time + AIR_BRIDGE.revealAfter,
-  };
+  return { options, selected, target: options[selected] };
 }
 
-function revealAirborneBridge(game) {
-  if (!game.pendingEcho || game.time < game.pendingEcho.due) return;
-  const { options, selected, facing } = game.pendingEcho;
-  game.pendingEcho = null;
-  if (game.airborneCue) {
-    game.airborneCue.phase = 'revealed';
-    game.airborneCue.selected = selected;
-  }
-  const target = options[selected];
-  // An existing stone is always solid: never stamp a duplicate over it.
+/** Stamp the exact target the player already saw, immediately on takeoff. */
+function createAirborneBridge(game, forecast) {
+  const { options, selected, target } = forecast ?? airborneForecast(game);
+  game.airborneTurn += 1;
+  game.airborneCue = { options, selected, phase: 'revealed' };
+  // A real stone is already solid and is not replaced by a fake echo.
   if (target.role !== 'stone') {
-    game.flightBridgeId = stamp(game, game.player, target.y, target, facing);
+    game.flightBridgeId = stamp(game, game.player, target.y, target, game.player.facing);
   }
   game.events.push({ type: 'airborne_reveal', selected, target: target.role });
 }
@@ -279,6 +273,11 @@ export function update(game, input = {}, dt = 1 / 60) {
   const jumpDown = !!input.jump;
   const jumpPressed = jumpDown && !game.prevJump;
   game.prevJump = jumpDown;
+  // Capture the LAST rendered forecast before this frame changes facing or x.
+  // Pressing direction+jump together may steer the flight, but cannot silently
+  // replace the landing target the player was shown on the previous frame.
+  const visibleForecast = game.challengeEnabled && game.route?.revealed && player.grounded
+    ? airborneForecast(game) : null;
 
   if (input.left && !input.right) {
     player.vx = -PHYSICS.moveSpeed;
@@ -309,9 +308,8 @@ export function update(game, input = {}, dt = 1 / 60) {
     // One echo per *actual* jump (not keydown). A failed airborne press makes none.
     if (game.echoMode === 'flow' && game.echoesEnabled) {
       if (game.challengeEnabled && game.route?.revealed) {
-        // Same two-choice rule on every advanced takeoff, including jumps
-        // toward existing ledges. No position-dependent mode switch.
-        queueAirborneBridge(game);
+        // One committed, visible target before takeoff. No midair lottery.
+        createAirborneBridge(game, visibleForecast);
       } else {
         const tutorial = game.challengeEnabled && game.route && !game.route.revealed
           ? predictEcho(game) : null;
@@ -348,7 +346,6 @@ export function update(game, input = {}, dt = 1 / 60) {
 
   player.grounded = false;
   let landedOn = null;
-  revealAirborneBridge(game);
   if (player.vy >= 0) {
     const feet = player.y + PLAYER.h;
     let best = null;
