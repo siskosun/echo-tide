@@ -299,7 +299,18 @@ export function update(game, input = {}, dt = 1 / 60) {
         // Same two-choice rule on every advanced takeoff, including jumps
         // toward existing ledges. No position-dependent mode switch.
         queueAirborneBridge(game);
-      } else stamp(game, player, launchTop);
+      } else {
+        const tutorial = game.challengeEnabled && game.route && !game.route.revealed
+          ? predictEcho(game) : null;
+        stamp(game, player, launchTop);
+        if (tutorial) {
+          // The initial wide-bridge lesson is the only one-candidate jump.
+          // Freeze this preview too, so it does not slide with the player.
+          game.airborneCue = {
+            options: { near: tutorial }, phase: 'tutorial', selected: 'near',
+          };
+        }
+      }
     }
     player.vy = -PHYSICS.jumpSpeed;
     player.grounded = false;
