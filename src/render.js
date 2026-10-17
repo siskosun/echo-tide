@@ -1,4 +1,4 @@
-import { ECHO, KILL_Y, WORLD, predictEcho, airborneCandidates } from './game.js';
+import { ECHO, KILL_Y, WORLD, predictEcho, airborneCandidates, hasReachableStone } from './game.js';
 
 const FONT = '"WenQuanYi Micro Hei", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif';
 
@@ -118,6 +118,12 @@ function drawPlatform(ctx, platform) {
 
 function drawLaunchForecast(ctx, game) {
   if (game.challengeEnabled && game.route?.revealed) {
+    if (game.player.grounded && hasReachableStone(game)) {
+      // A fixed stone is already a safe known target: do not draw false bridges.
+      label(ctx, game.player.x + 14, game.player.y - 20,
+        '前方有固定石台 · 直接跳上去', '#ffe7b5');
+      return;
+    }
     const options = game.pendingEcho?.options ?? airborneCandidates(game);
     ctx.save();
     ctx.strokeStyle = 'rgba(253, 236, 186, 0.77)';
