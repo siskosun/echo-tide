@@ -66,3 +66,13 @@ This repository is prepared for [game-exp](https://github.com/siskosun) experime
 ## License
 
 Prototype / research — all rights reserved unless otherwise noted.
+
+## EXP-2 mobile touch experiment (AI-only technical branch)
+
+This source branch belongs to [game-exp EXP-2](https://github.com/siskosun/echo-tide/issues/2). The exact parent is `aecd07cd0b84d29958aad0196840f20eb98fc1ad` from the existing EXP-1 playable prototype. **This is an engineering comparison arm, not a player-preference result.** The matching [human-guided EXP-3](https://github.com/siskosun/echo-tide/issues/3) is deliberately unchanged until actual human design input exists.
+
+On touch devices, buttons below the canvas hold left/right movement, jump, and (in rooms 2–3) anchor/release. Two fingers can hold movement and jump concurrently. Pointer release/cancel, lost pointer capture, tab hiding and window focus loss clear held controls. The original keyboard commands, room selection and game rules are unchanged. The mobile input adapter is `src/touch_controls.js`; its deterministic regression tests live in `test/touch_controls.test.js` and are imported by the existing smoke-test entrypoint so `npm test` exercises them.
+
+Known results: the six new isolated touch-state tests were run in Node with identical Git blob content and passed. The full project-level test, build and mobile visual acceptance require separate verification before the trusted Candidate Review; do not infer those from the isolated tests.
+
+Production effort and AI call counts were not instrumented at source time; do not infer matching development costs from shared caps. No human-guided output, real participant, retention, or willingness-to-pay observation is available.
