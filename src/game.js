@@ -373,6 +373,7 @@ export function update(game, input = {}, dt = 1 / 60) {
         missed.phase = 'sink';
         missed.age = 0;
         game.events.push({ type: 'bridge_missed', id: missed.id });
+        notify(game, '这次没接住 · 新桥消散，下一跳重新判位');
       }
     }
     game.flightBridgeId = null;
