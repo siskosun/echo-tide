@@ -63,12 +63,12 @@
   <body>
     <div class="wrap">
       <h1>Echo Tide <span>/ 叠影潮</span></h1>
-      <p class="lede">首跳使用确定的宽桥。之后每跳持续显示两个候选落点，起跳后约 0.16 秒确认其中一个；玩家空中调整方向，落稳后继续前进。</p>
+      <p class="lede">首跳使用确定的宽桥。之后起跳前就明确显示下一目标，玩家看准落点再跳；平台不会在空中随机改变。</p>
       <div class="toolbar"><label for="room">关卡</label><select id="room"><option value="0">01 折返接力</option><option value="1">02 留一条退路</option><option value="2">03 借路归航</option></select><label for="difficulty">操作</label><select id="difficulty"><option value="hard" selected>挑战：空中二选一</option><option value="standard">入门：确定平台</option></select><button id="restart" type="button">重试本关</button><button id="next" type="button" hidden>下一关 →</button></div>
       <canvas id="game" width="960" height="540" tabindex="0" aria-label="叠影潮游戏。方向键或 AD 移动，空格跳跃，E 锚定，R 重开。"></canvas>
       <p id="status" class="foot" role="status" aria-live="polite"></p>
       <p id="hint" class="foot"></p>
-      <p class="foot">挑战模式：第一跳安全教学；踩上首块回声后，每跳始终显示两个候选落点：黄虚框表示可能出现的窄回声，绿实框表示已有石台。约 0.16 秒后突出实际落点，另一候选变淡，但两框直到落脚都不消失。新桥必须在本跳接住；没接到的新桥会消散，不能留到下一跳。已经踩过的旧桥会保护这次跳跃；落回临近消失的旧桥还有一次短暂重试机会，不会立刻抽掉脚下支撑。观察具体落点，空中用方向键修正；没有升起闪动动画。入门模式仍提供固定的宽桥。第一次踩上回声后揭晓本局左右岸潮印，必须取得后才能出关。使用 ←→ / A D 移动，空格 / W / ↑ 跳跃，E 锚定，R 重开，Enter 下一关。最多锚定一块；切换标签页自动暂停。</p>
+      <p class="foot">挑战模式：第一跳安全教学；踩上首块回声后，每次起跳前都会显示确定的落点。起跳即时成桥，不再空中随机二选一；跳偏后回到旧桥可获得一次有限的补救机会，新桥不能跨跳存储。左右潮印仍会在第一块回声成功落脚后揭晓；已成功取得的桥仍受寿命与锚定限制。使用 ←→ / A D 移动，空格 / W / ↑ 跳跃，E 锚定，R 重开，Enter 下一关。最多锚定一块；切换标签页自动暂停。</p>
     </div>
     <script type="module" src="/src/main.js"></script>
   </body>
