@@ -1,4 +1,4 @@
-import { ECHO, KILL_Y, WORLD, predictEcho, airborneForecast, canPlaceFlowEcho } from './game.js';
+import { ECHO, KILL_Y, WORLD, SURF, predictEcho, airborneForecast, canPlaceFlowEcho } from './game.js';
 
 const FONT = '"WenQuanYi Micro Hei", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif';
 
@@ -9,6 +9,9 @@ export function draw(ctx, game) {
   squash = Math.max(0, squash - 1 / 60);
   for (const event of game.events) {
     if (event.type === 'land') squash = 0.12;
+    if (event.type === 'precision' && game.surfEnabled) {
+      burst(game.player.x + 14, game.player.y + 30, '#aefbdc', 8);
+    }
     if (event.type === 'stamp' && game.echoMode === 'legacy') burst(game.player.x + 14, game.player.y + 36, '#b8fff0', 10);
     if (event.type === 'solid') {
       const echo = game.echoes.find((item) => item.id === event.id);
@@ -137,6 +140,12 @@ function drawLaunchForecast(ctx, game) {
     ctx.setLineDash(stone ? [] : [6, 4]);
     if (!stone) ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
     ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+    if (game.surfEnabled && !stone) {
+      const zone = Math.min(SURF.centerToleranceMax, rect.w * SURF.centerFraction) * 2;
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#aefbdc';
+      ctx.fillRect(rect.x + (rect.w - zone) / 2, rect.y - 2, zone, 5);
+    }
     ctx.restore();
     label(ctx, Math.max(130, Math.min(WORLD.w - 130, rect.x + rect.w / 2)),
       Math.max(106, rect.y - 24), '目标已确定 · 向前横跳', '#e8ffad');
@@ -205,6 +214,12 @@ function drawEcho(ctx, game, echo) {
   ctx.fill();
   ctx.restore();
 
+  if (game.surfEnabled && echo.phase === 'solid') {
+    const zone = Math.min(SURF.centerToleranceMax, echo.w * SURF.centerFraction) * 2;
+    ctx.fillStyle = '#aefbdc';
+    ctx.fillRect(echo.x + (echo.w - zone) / 2, echo.y - 2, zone, 5);
+  }
+
   if (echo.phase === 'solid') {
     const remain = 1 - t;
     ctx.fillStyle = 'rgba(7, 16, 24, 0.45)';
@@ -267,6 +282,12 @@ function drawPlayer(ctx, game) {
   const y = player.y + (36 - height);
   const bob = player.grounded ? Math.sin(game.time * 7) * 0.7 : 0;
 
+  if (game.surfEnabled && game.dashTime > 0) {
+    // Short local echo trail; never animate the destination platforms.
+    ctx.fillStyle = 'rgba(174, 251, 220, 0.16)';
+    const behind = game.dashDirection > 0 ? player.x - 27 : player.x + 28;
+    ctx.fillRect(behind, player.y + 9, 27, 22);
+  }
   ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
   ctx.beginPath();
   ctx.ellipse(player.x + 14, player.y + 38, 10, 3, 0, 0, Math.PI * 2);
@@ -307,7 +328,9 @@ function drawHud(ctx, game) {
   ctx.fillText(`${Number.isInteger(game.levelIndex) ? `${game.levelIndex + 1} / 3` : '练习'}  ${game.level.title} · ${game.level.subtitle}`, 24, 18);
   ctx.font = `12px ${FONT}`;
   ctx.fillStyle = '#b7e4dc';
-  ctx.fillText(game.echoMode === 'flow'
+  ctx.fillText(game.surfEnabled
+    ? `踏浪冲刺：Shift/J 空中加速 · 踩新桥中央亮心补能 · 潮能${game.surgeCharge ? '●' : '○'} · 连击${game.precisionChain}`
+    : game.echoMode === 'flow'
     ? (game.challengeEnabled && game.route?.revealed
       ? ((game.airborneCue?.phase === 'blocked' || (game.player.grounded && airborneForecast(game).blocked))
         ? '挑战：当前站位无法造桥 · 调整位置或转身'
@@ -338,7 +361,11 @@ function drawOverlay(ctx, game) {
   const won = game.status === 'won';
   const final = game.levelIndex === 2;
   const title = won ? (final ? '借潮归航 · 三关完成' : `${game.level.title} · 完成`) : game.reason === 'timeout' ? '潮汐退尽' : '坠入潮底';
-  const sub = won ? `回声落脚 ${game.stats.echoLandings} 次 · 锚定 ${game.stats.anchors} 次` : '你的路线可以重来';
+  const sub = won
+    ? (game.surfEnabled
+      ? `回声落脚 ${game.stats.echoLandings} · 潮跃 ${game.stats.dashes} · 精准 ${game.stats.preciseLandings} · 最佳连击 ${game.stats.bestChain}`
+      : `回声落脚 ${game.stats.echoLandings} 次 · 锚定 ${game.stats.anchors} 次`)
+    : '你的路线可以重来';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   ctx.font = `28px ${FONT}`;
