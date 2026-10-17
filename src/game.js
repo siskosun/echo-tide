@@ -226,13 +226,49 @@ export function airborneForecast(game) {
   const selected = airborneChoice(
     game.seed, game.levelIndex, game.nextId + game.airborneTurn,
   );
-  return { options, selected, target: options[selected] };
+  const preference = [selected, selected === 'near' ? 'far' : 'near'];
+  // Never preview a platform that the authoritative placement rule will reject.
+  // A usable alternate is selected on the GROUND, never rolled after takeoff.
+  for (const side of preference) {
+    const target = options[side];
+    if (target.role === 'stone' || canPlaceFlowEcho(game, target)) {
+      return { options, selected: side, target, blocked: false };
+    }
+  }
+  return { options, selected: null, target: null, blocked: true };
+}
+
+/**
+ * A freshly generated bridge must demand a real horizontal jump.
+ * World-edge clamping must not let a bridge appear directly over the player.
+ * Another active echo in the same narrow lane cannot become a vertical
+ * staircase; small edge overlaps are retained for normal jumping tolerance.
+ * The same pure rule is used by forecast and authoritative stamping.
+ */
+export function canPlaceFlowEcho(game, rect) {
+  if (!rect || rect.role === 'stone') return false;
+  const horizontalOverlap = (a, b) =>
+    Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
+  // A new bridge directly under the player's horizontal footprint permits
+  // a stationary vertical jump to capture it. Even a small intersection does.
+  if (horizontalOverlap(rect, playerRect(game.player)) > 1) return false;
+  // Do not generate a second collision surface on an existing fixed ledge.
+  if (game.platforms.some(platform => overlaps(rect, inflate(platform, 2)))) return false;
+  return !game.echoes.some(echo => echo.phase === 'solid'
+    && echo.w <= rect.w + 6
+    && horizontalOverlap(rect, echo) > Math.min(rect.w, echo.w) * 0.55);
 }
 
 /** Stamp the exact target the player already saw, immediately on takeoff. */
 function createAirborneBridge(game, forecast) {
-  const { options, selected, target } = forecast ?? airborneForecast(game);
+  const { options, selected, target, blocked } = forecast ?? airborneForecast(game);
   game.airborneTurn += 1;
+  if (blocked) {
+    game.airborneCue = { options, selected: null, phase: 'blocked' };
+    game.events.push({ type: 'bridge_blocked', reason: 'no_clear_landing' });
+    notify(game, '这里不能叠桥 · 调整站位或转身再跳');
+    return;
+  }
   game.airborneCue = { options, selected, phase: 'revealed' };
   // A real stone is already solid and is not replaced by a fake echo.
   if (target.role !== 'stone') {
@@ -441,6 +477,11 @@ export function update(game, input = {}, dt = 1 / 60) {
 
 function stamp(game, player, surfaceTop, overrideRect = null, facing = player.facing) {
   const rect = overrideRect ?? flowEchoRect(game, player.x + PLAYER.w / 2, surfaceTop, facing);
+  if (game.echoMode === 'flow' && !canPlaceFlowEcho(game, rect)) {
+    game.events.push({ type: 'bridge_blocked', reason: 'overlap_or_wall' });
+    notify(game, '这里不能叠桥 · 先改变起跳位置');
+    return null;
+  }
   const phase = game.echoMode === 'flow' ? 'solid' : 'rise';
   game.stats[facing < 0 ? 'leftStamps' : 'rightStamps'] += 1;
   const existing = game.echoes.find((echo) => (
