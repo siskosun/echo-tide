@@ -63,12 +63,12 @@
   <body>
     <div class="wrap">
       <h1>Echo Tide <span>/ 叠影潮</span></h1>
-      <p class="lede">首跳使用确定的宽桥。之后起跳前就明确显示下一目标，玩家看准落点再跳；平台不会在空中随机改变。</p>
-      <div class="toolbar"><label for="room">关卡</label><select id="room"><option value="0">01 折返接力</option><option value="1">02 留一条退路</option><option value="2">03 借路归航</option></select><label for="difficulty">操作</label><select id="difficulty"><option value="hard" selected>挑战：提前确定窄桥</option><option value="standard">入门：确定平台</option></select><button id="restart" type="button">重试本关</button><button id="next" type="button" hidden>下一关 →</button></div>
-      <canvas id="game" width="960" height="540" tabindex="0" aria-label="叠影潮游戏。方向键或 AD 移动，空格跳跃，E 锚定，R 重开。"></canvas>
+      <p class="lede">新版试验：看准固定落点，空中按 Shift / J 向前踏浪冲刺；精准踩中新回声中央亮心，即可恢复下一次冲刺。平台仍不会随机改变。</p>
+      <div class="toolbar"><label for="room">关卡</label><select id="room"><option value="0">01 折返接力</option><option value="1">02 留一条退路</option><option value="2">03 借路归航</option></select><label for="difficulty">操作</label><select id="difficulty"><option value="hard" selected>挑战：提前确定窄桥</option><option value="standard">入门：确定平台</option></select><label for="style">玩法</label><select id="style"><option value="surf" selected>试验：踏浪冲刺</option><option value="classic">对照：原版连跳</option></select><button id="restart" type="button">重试本关</button><button id="next" type="button" hidden>下一关 →</button></div>
+      <canvas id="game" width="960" height="540" tabindex="0" aria-label="叠影潮游戏。方向键或 AD 移动，空格跳跃，Shift 或 J 空中冲刺，E 锚定，R 重开。"></canvas>
       <p id="status" class="foot" role="status" aria-live="polite"></p>
       <p id="hint" class="foot"></p>
-      <p class="foot">挑战模式：第一跳安全教学；踩上首块回声后，每次起跳前都会显示确定的落点。起跳即时成桥，不再空中随机二选一；跳偏后回到旧桥可获得一次有限的补救机会，新桥不能跨跳存储。左右潮印仍会在第一块回声成功落脚后揭晓；已成功取得的桥仍受寿命与锚定限制。新桥与起跳位置必须保持明显水平间隔，轻微左右移动、原地连跳无法逐层抬高；可以先调整位置，再向预告落点完成真正的横向跳跃。新桥不能直接生成在脚下或叠成竖直台阶；边缘距离不足时请转身或后退。使用 ←→ / A D 移动，空格 / W / ↑ 跳跃，E 锚定，R 重开，Enter 下一关。最多锚定一块；切换标签页自动暂停。</p>
+      <p class="foot">挑战模式：第一跳安全教学；踩上首块回声后，每次起跳前都会显示确定的落点。起跳即时成桥，不再空中随机二选一；跳偏后回到旧桥可获得一次有限的补救机会，新桥不能跨跳存储。左右潮印仍会在第一块回声成功落脚后揭晓；已成功取得的桥仍受寿命与锚定限制。新桥与起跳位置必须保持明显水平间隔，轻微左右移动、原地连跳无法逐层抬高；可以先调整位置，再向预告落点完成真正的横向跳跃。新桥不能直接生成在脚下或叠成竖直台阶；边缘距离不足时请转身或后退。「踏浪冲刺」可在空中按 Shift/J 一次水平冲刺，踩中新桥中央的浅绿亮心才能补充潮能；不用冲刺仍可完成三关。切换「原版连跳」会保留本关随机种子，便于对照体验。使用 ←→ / A D 移动，空格 / W / ↑ 跳跃，E 锚定，R 重开，Enter 下一关。最多锚定一块；切换标签页自动暂停。</p>
     </div>
     <script type="module" src="/src/main.js"></script>
   </body>
