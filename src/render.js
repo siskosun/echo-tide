@@ -124,7 +124,7 @@ function drawLaunchForecast(ctx, game) {
     if (forecast.phase === 'blocked' || forecast.blocked || forecast.selected === null) {
       label(ctx, Math.max(130, Math.min(WORLD.w - 130, game.player.x + 14)),
         Math.max(106, game.player.y - 22),
-        '此处不能叠桥 · 移动或转身', '#ffb089');
+        '跳跃空间不足 · 移动或转身', '#ffb089');
       return;
     }
     const { options, selected } = forecast;
@@ -139,7 +139,7 @@ function drawLaunchForecast(ctx, game) {
     ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
     ctx.restore();
     label(ctx, Math.max(130, Math.min(WORLD.w - 130, rect.x + rect.w / 2)),
-      Math.max(106, rect.y - 24), '目标已确定 · 看准再跳', '#e8ffad');
+      Math.max(106, rect.y - 24), '落点已知 · 加速横跳', '#e8ffad');
     return;
   }
   const rect = game.airborneCue?.phase === 'tutorial'
@@ -148,7 +148,7 @@ function drawLaunchForecast(ctx, game) {
     && !canPlaceFlowEcho(game, rect)) {
     label(ctx, Math.max(130, Math.min(WORLD.w - 130, game.player.x + 14)),
       Math.max(106, game.player.y - 22),
-      '这里不能向上叠桥 · 先移动', '#ffb089');
+      '无法从这里跨越 · 先调整站位', '#ffb089');
     return;
   }
   ctx.save();
