@@ -1,8 +1,10 @@
 /** Hard-mode landing challenge. Preview options, reveal the actual bridge mid-flight. */
 export const AIR_BRIDGE = Object.freeze({
   w: 104,
-  near: 42,
-  far: 147,
+  // Width 104. Near/far must sit outside the 28px launch footprint,
+  // yet remain catchable within the 620px/s jump arc at 240px/s sideways.
+  near: 72,
+  far: 170,
   backtrackWhenBlocked: 72,
   revealAfter: 0.16,
   maxCandidates: 2,
