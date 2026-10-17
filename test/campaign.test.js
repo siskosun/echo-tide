@@ -1,6 +1,7 @@
 import test from 'node:test';
 import './route_fork.test.js';
 import './airborne_bridge.test.js';
+import './surf_dash.test.js';
 import assert from 'node:assert/strict';
 import { createGame, update, ECHO, PLAYER, LEVELS, maxJumpHeight } from '../src/game.js';
 import { playRoom } from './campaign-driver.js';
@@ -204,3 +205,14 @@ test('next only advances a won room; final room cannot overflow; terminal events
   game = playRoom(2).game;
   assert.equal(tick(game, { next: true }).levelIndex, 2);
 });
+
+for (let level = 0; level < LEVELS.length; level++) {
+  test(`opt-in surf mode preserves an input-only winning path in room ${level + 1}`, () => {
+    const { game, inputs } = playRoom(level, { surf: true });
+    assert.equal(game.status, 'won');
+    assert.equal(game.surfEnabled, true);
+    assert.equal(game.objectiveCollected, true);
+    assert.ok(inputs.every(input => !input.dash),
+      'the core campaign must never require dashes to remain finishable');
+  });
+}
