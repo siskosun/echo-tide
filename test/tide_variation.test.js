@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { TIDE, tideShiftAt, tideDirectionAt } from '../src/tide_variation.js';
-import { ECHO, createGame, predictEcho, update } from '../src/game.js';
+import { ECHO, PLAYER, PHYSICS, createGame, predictEcho, update } from '../src/game.js';
 
 const dt = 1 / 60;
 const step = (game, inputs = {}) => update(game, inputs, dt);
@@ -22,6 +22,19 @@ test('tide is deterministic and shifts the announced destination within limits',
   a.time = TIDE.period / 4;
   b.time = TIDE.period * 3 / 4;
   assert.ok(predictEcho(a).x > predictEcho(b).x + 35);
+});
+
+test('tidal limits leave horizontal clearance for a normal held jump from either direction', () => {
+  // Descending crossing of a platform ECHO.shiftY above the launch surface.
+  const h = -ECHO.shiftY;
+  const discriminant = PHYSICS.jumpSpeed ** 2 - 2 * PHYSICS.gravity * h;
+  assert.ok(discriminant > 0, 'the next platform is vertically within the jump arc');
+  const crossing = (PHYSICS.jumpSpeed + Math.sqrt(discriminant)) / PHYSICS.gravity;
+  const horizontalTravel = PHYSICS.moveSpeed * crossing;
+  const baseOffset = ECHO.shiftX - ECHO.w / 2 + PLAYER.w / 2;
+  const clearance = horizontalTravel + PLAYER.w - baseOffset;
+  const maxDrift = Math.abs(TIDE.baseShift) + TIDE.amplitude;
+  assert.ok(maxDrift + 6 < clearance, `worst tidal shift ${maxDrift} leaves insufficient edge clearance ${clearance}`);
 });
 
 test('launch creates an echo immediately and the forecast matches its actual destination', () => {
