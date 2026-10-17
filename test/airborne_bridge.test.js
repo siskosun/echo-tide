@@ -134,6 +134,7 @@ test('standard mode retains full-width instant solid bridges and no pending roll
 test('existing stone is one visible choice, without the previous disappearing two-box preview', () => {
   const seed = branchSeeds(0).far;
   let game = firstEchoLanding(0, seed);
+  game = tick(game, {}); // Neutral ground frame can still drift via run grace.
   assert.equal(hasReachableStone(game), true);
   const candidates = airborneCandidates(game);
   assert.equal(candidates.near.role, 'echo');
@@ -142,7 +143,6 @@ test('existing stone is one visible choice, without the previous disappearing tw
   assert.ok(game.platforms.every(p => !overlaps(candidates.near, p)),
     'the echo option must not paint a second bridge over a stone');
   const count = game.stats.stamps;
-  game = tick(game, {});
   game = tick(game, { left: true, jump: true });
   assert.ok(game.pendingEcho, 'the choice remains visible even when rock can be reached');
   assert.equal(game.airborneCue.phase, 'pending');
@@ -209,9 +209,10 @@ test('same two outlined choices are drawn before, during, and after midair revea
     assert.ok(!labels.some(x => x.includes('前方有固定石台 · 直接跳上去')),
       'reverting to a conditional hidden choice is forbidden');
   }
+  snapshot(airborneCandidates(game));
+  game = tick(game, {});
   const expected = structuredClone(airborneCandidates(game));
   snapshot(expected);
-  game = tick(game, {});
   game = tick(game, { right: true, jump: true });
   snapshot(expected);
   for (let i = 0; i < 12 && game.pendingEcho; i += 1) {
