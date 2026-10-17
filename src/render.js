@@ -149,7 +149,8 @@ function drawLaunchForecast(ctx, game) {
       msg, '#ffe7b5');
     return;
   }
-  const rect = predictEcho(game);
+  const rect = game.airborneCue?.phase === 'tutorial'
+    ? game.airborneCue.options.near : predictEcho(game);
   ctx.save();
   ctx.strokeStyle = '#ffe7b5';
   ctx.fillStyle = 'rgba(255, 231, 181, 0.13)';
@@ -158,7 +159,8 @@ function drawLaunchForecast(ctx, game) {
   ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
   ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
   ctx.restore();
-  label(ctx, rect.x + rect.w / 2, rect.y - 18, '起跳立即成桥', '#ffe7b5');
+  label(ctx, rect.x + rect.w / 2, rect.y - 18,
+    game.challengeEnabled ? '首跳教学：固定宽桥 · 落脚后始终双候选' : '起跳立即成桥', '#ffe7b5');
 }
 
 function drawEcho(ctx, game, echo) {
