@@ -146,6 +146,20 @@ function drawLaunchForecast(ctx, game) {
     ctx.setLineDash(stone ? [] : [6, 4]);
     if (!stone) ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
     ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+    // Distinct corner-notch identity, directly attached to the real predicted rectangle.
+    if (!stone) {
+      ctx.setLineDash([]);
+      ctx.strokeStyle = '#f6efbb';
+      ctx.lineWidth = 3;
+      const notch = Math.min(13, rect.w * 0.22);
+      ctx.beginPath();
+      ctx.moveTo(rect.x + 2, rect.y + notch); ctx.lineTo(rect.x + 2, rect.y + 2);
+      ctx.lineTo(rect.x + notch, rect.y + 2);
+      ctx.moveTo(rect.x + rect.w - notch, rect.y + rect.h - 2);
+      ctx.lineTo(rect.x + rect.w - 2, rect.y + rect.h - 2);
+      ctx.lineTo(rect.x + rect.w - 2, rect.y + rect.h - notch);
+      ctx.stroke();
+    }
     if (game.surfEnabled && !stone) {
       const zone = Math.min(SURF.centerToleranceMax, rect.w * SURF.centerFraction) * 2;
       ctx.setLineDash([]);
@@ -352,7 +366,7 @@ function drawHud(ctx, game) {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   ctx.fillStyle = '#e7fff8';
-  ctx.fillText(`${Number.isInteger(game.levelIndex) ? `${game.levelIndex + 1} / 3` : '练习'}  ${game.level.title} · ${game.level.subtitle}`, 24, 18);
+  ctx.fillText((typeof innerWidth !== 'undefined' && innerWidth < 580) ? `${Number.isInteger(game.levelIndex) ? `${game.levelIndex + 1}/3` : '练习'} · ${game.level.title}` : `${Number.isInteger(game.levelIndex) ? `${game.levelIndex + 1} / 3` : '练习'}  ${game.level.title} · ${game.level.subtitle}`, 24, 18);
   ctx.font = `12px ${FONT}`;
   ctx.fillStyle = '#b7e4dc';
   ctx.fillText(game.surfEnabled
