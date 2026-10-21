@@ -3,7 +3,8 @@ import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
 
 const port = 4179;
-const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(port), '--strictPort'], { stdio: 'pipe' });
+const viteArgs = ['node_modules/vite/bin/vite.js', ...(process.env.ET_SMOKE_BUILT === '1' ? ['preview'] : []), '--host', '127.0.0.1', '--port', String(port), '--strictPort'];
+const server = spawn(process.execPath, viteArgs, { stdio: 'pipe' });
 let serverLog = '';
 server.stdout.on('data', b => { serverLog += b.toString(); });
 server.stderr.on('data', b => { serverLog += b.toString(); });
