@@ -1,5 +1,7 @@
 import { WORLD, LEVELS, createGame, update } from './game.js';
 import { draw } from './render.js';
+import { renderVisualHud } from './visual_hud.js';
+import { attachTouchControls } from './touch_controls.js';
 
 const canvas = document.getElementById('game');
 const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -16,6 +18,10 @@ function newRouteSeed() {
 }
 
 const keys = new Set();
+const touchKeys = new Set();
+const isDown = code => keys.has(code) || touchKeys.has(code);
+const touchControls = attachTouchControls({root:document.getElementById('et-touch-controls'),keys:touchKeys});
+const portraitTouchMode = window.matchMedia('(max-width:580px) and (orientation:portrait) and (pointer:coarse)');
 let game = createGame({ seed: newRouteSeed(), challenge: true, surf: true });
 let last = performance.now();
 let restartLatch = false;
@@ -32,6 +38,12 @@ const hint = document.getElementById('hint');
 let uiKey = '';
 let pointerNext = false;
 let buttonRestart = false;
+// Local trial readout; it exposes no mutation methods and is not a game-exp review.
+if (location.hostname === '127.0.0.1') Object.defineProperty(window,'__ET_TOUCH_TRIAL_READONLY__',{
+  value:()=>({time:game.time,status:game.status,level:game.levelIndex,
+    player:{x:game.player.x,y:game.player.y,vx:game.player.vx,vy:game.player.vy,grounded:game.player.grounded},
+    dashes:game.stats.dashes,anchorId:game.anchorId,pressed:[...touchKeys].sort()}),writable:false,configurable:false
+});
 function restartForMode({ keepSeed = false } = {}) {
   game = createGame({
     level: Number(roomSelect.value),
@@ -42,6 +54,7 @@ function restartForMode({ keepSeed = false } = {}) {
   });
   uiKey = '';
   keys.clear();
+  touchControls.clear();
   canvas.focus();
 }
 roomSelect.addEventListener('change', () => restartForMode());
@@ -51,9 +64,9 @@ document.getElementById('restart').addEventListener('click', () => { buttonResta
 nextButton.addEventListener('click', () => { pointerNext = true; canvas.focus(); });
 
 const held = {
-  left: () => keys.has('ArrowLeft') || keys.has('KeyA'),
-  right: () => keys.has('ArrowRight') || keys.has('KeyD'),
-  jump: () => keys.has('Space') || keys.has('ArrowUp') || keys.has('KeyW') || keys.has('KeyK'),
+  left: () => isDown('ArrowLeft') || isDown('KeyA'),
+  right: () => isDown('ArrowRight') || isDown('KeyD'),
+  jump: () => isDown('Space') || isDown('ArrowUp') || isDown('KeyW') || isDown('KeyK'),
 };
 
 addEventListener('keydown', (event) => {
@@ -67,9 +80,10 @@ addEventListener('keydown', (event) => {
 addEventListener('keyup', (event) => {
   keys.delete(event.code);
 });
-addEventListener('blur', () => keys.clear());
+addEventListener('blur', () => { keys.clear(); touchControls.clear(); });
 document.addEventListener('visibilitychange', () => {
   keys.clear();
+  touchControls.clear();
   accumulator = 0;
   last = performance.now();
 });
@@ -80,14 +94,27 @@ canvas.addEventListener('pointerdown', () => {
 });
 
 function frame(now) {
-  const dt = document.hidden ? 0 : Math.min(0.083, (now - last) / 1000);
+  const dt = (document.hidden || portraitTouchMode.matches) ? 0 : Math.min(0.083, (now - last) / 1000);
   last = now;
-  const restartDown = keys.has('KeyR') || buttonRestart || (game.status === 'lost' && (keys.has('Enter') || pointerRestart));
+  // Orientation gate freezes every state transition, including restart/next
+  // commands from a hardware keyboard. Rendering remains active.
+  if (portraitTouchMode.matches) {
+    pointerRestart = false;
+    buttonRestart = false;
+    pointerNext = false;
+    accumulator = 0;
+    draw(ctx, game);
+    syncUi();
+    renderVisualHud(game);
+    requestAnimationFrame(frame);
+    return;
+  }
+  const restartDown = isDown('KeyR') || buttonRestart || (game.status === 'lost' && (isDown('Enter') || pointerRestart));
   const restart = restartDown && !restartLatch;
   restartLatch = restartDown;
   pointerRestart = false;
   buttonRestart = false;
-  const nextDown = keys.has('Enter') || pointerNext;
+  const nextDown = isDown('Enter') || pointerNext;
   const next = nextDown && !nextLatch;
   nextLatch = nextDown;
   pointerNext = false;
@@ -95,10 +122,10 @@ function frame(now) {
     left: held.left(),
     right: held.right(),
     jump: held.jump(),
-    dash: keys.has('ShiftLeft') || keys.has('ShiftRight') || keys.has('KeyJ'),
+    dash: isDown('ShiftLeft') || isDown('ShiftRight') || isDown('KeyJ'),
     restart,
     next,
-    anchor: keys.has('KeyE'),
+    anchor: isDown('KeyE'),
   };
   // Fixed simulation steps keep echo timing/collision consistent at any refresh rate.
   accumulator += dt;
@@ -119,6 +146,7 @@ function frame(now) {
   voice(events);
   draw(ctx, game);
   syncUi();
+  renderVisualHud(game);
   requestAnimationFrame(frame);
 }
 
@@ -178,4 +206,17 @@ function tone(freq, dur, type, gainValue) {
   }
 }
 
+function syncOrientationMode() {
+  // Cancel all held keys even if the device rotates during a two-finger gesture.
+  keys.clear();
+  touchControls.clear();
+  accumulator = 0;
+  last = performance.now();
+  const portrait = portraitTouchMode.matches;
+  document.querySelector('.wrap').inert = portrait;
+  document.getElementById('et-landscape-gate').setAttribute('aria-hidden',String(!portrait));
+}
+portraitTouchMode.addEventListener('change',syncOrientationMode);
+addEventListener('orientationchange',syncOrientationMode);
+syncOrientationMode();
 requestAnimationFrame(frame);
