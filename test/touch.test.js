@@ -45,6 +45,7 @@ test('two simultaneous fingers press independent controls and release independen
   assert.deepEqual([...t.keys].sort(), ['ArrowLeft', 'Space']);
   t.buttons[0].fire('pointerup', {pointerId: 1});
   assert.deepEqual([...t.keys], ['Space']);
+  t.buttons[2].fire('pointerup', {pointerId: 2});
   t.tick(100);
   assert.equal(t.keys.size, 0);
 });
