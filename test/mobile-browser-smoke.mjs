@@ -47,6 +47,9 @@ try {
   await page.setViewportSize({width:844,height:390});
   await page.waitForFunction(() => !matchMedia('(max-width:580px) and (orientation:portrait) and (pointer:coarse)').matches);
   assert.equal(await gate.isVisible(), false, 'landscape must hide gate');
+  // CSS media matching and JS matchMedia change callbacks settle on separate turns.
+  // Verify eventual DOM interactivity instead of racing the event handler.
+  await page.waitForFunction(() => !document.querySelector('.wrap').inert);
   assert.equal(await page.locator('.wrap').getAttribute('inert'), null, 'landscape game must be interactive');
   await sleep(350);
   const live = await state(page);
@@ -79,12 +82,14 @@ try {
   assert.ok((await state(page)).pressed.includes('Space'), 'jump pointer must register');
   await page.setViewportSize({width:390,height:844});
   await page.waitForFunction(() => matchMedia('(max-width:580px) and (orientation:portrait) and (pointer:coarse)').matches);
+  await page.waitForFunction(() => document.querySelector('.wrap').inert);
   await sleep(50);
   assert.deepEqual((await state(page)).pressed, [], 'rotation must clear held touch controls');
   const paused = await state(page);
   await sleep(250);
   assert.equal((await state(page)).time, paused.time, 'rotated portrait game must remain frozen');
   await page.setViewportSize({width:844,height:390});
+  await page.waitForFunction(() => !document.querySelector('.wrap').inert);
   await sleep(200);
   assert.ok((await state(page)).time > paused.time, 'game must resume after second rotation');
   assert.deepEqual(errors, [], 'no browser page errors');
