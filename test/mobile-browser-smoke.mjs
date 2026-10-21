@@ -51,6 +51,28 @@ try {
   await sleep(350);
   const live = await state(page);
   assert.ok(live.time > frozen.time, 'landscape clock must resume');
+  // Verify the actual five visible targets, not only the presence of the control container.
+  const layout = await page.locator('#et-touch-controls button[data-code]').evaluateAll(buttons => ({
+    width: innerWidth, height: innerHeight,
+    rects: buttons.map(button => {
+      const r = button.getBoundingClientRect();
+      return { code: button.dataset.code, x:r.x, y:r.y, w:r.width, h:r.height };
+    }),
+  }));
+  assert.equal(layout.rects.length, 5, 'five landscape controls required');
+  for (const r of layout.rects) {
+    assert.ok(r.w >= 34 && r.h >= 44, r.code + ' touch target is too small');
+    assert.ok(r.x >= 0 && r.y >= 0 && r.x + r.w <= layout.width + 1
+      && r.y + r.h <= layout.height + 1, r.code + ' must remain on screen');
+  }
+  for (let i = 0; i < layout.rects.length; i++) {
+    for (let j = i + 1; j < layout.rects.length; j++) {
+      const a = layout.rects[i], b = layout.rects[j];
+      const overlap = Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x) > 1
+        && Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y) > 1;
+      assert.ok(!overlap, a.code + ' overlaps ' + b.code);
+    }
+  }
   const jump = page.locator('button[data-code="Space"]');
   assert.equal(await jump.isVisible(), true, 'jump button must be visible in landscape');
   await jump.dispatchEvent('pointerdown',{pointerId:31,pointerType:'touch',button:0});
