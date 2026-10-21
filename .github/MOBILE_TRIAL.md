@@ -30,6 +30,6 @@
 
 ## 版本与完整性
 
-- `BUILD_ID.txt` 是打包所用的 Git 提交标识。
+- `BUILD_ID.txt` 记录 `source_head`（PR 源分支提交）和 `checkout_commit`（CI 实际检出的测试提交）。PR 事件通常测试临时合并提交，两者可能不同；反馈问题时请一并提供。
 - 外层工件还包含 `echo-tide-phone-trial.sha256`，可使用 `Get-FileHash .\echo-tide-phone-trial.zip -Algorithm SHA256` 校验内层 ZIP。
 - 此试用包只部署到本地设备，不会自动上传数据或发布网站。
