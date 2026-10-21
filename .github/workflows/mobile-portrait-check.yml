@@ -44,7 +44,7 @@ jobs:
           mkdir -p phone-trial
           cp -R dist phone-trial/dist
           cp .github/MOBILE_TRIAL.md phone-trial/README.md
-          printf '%s\n' "$GITHUB_SHA" > phone-trial/BUILD_ID.txt
+          printf 'source_head=%s\ncheckout_commit=%s\n' "${{ github.event.pull_request.head.sha || github.sha }}" "$(git rev-parse HEAD)" > phone-trial/BUILD_ID.txt
           (cd phone-trial && zip -q -r ../echo-tide-phone-trial.zip .)
           sha256sum echo-tide-phone-trial.zip > echo-tide-phone-trial.sha256
       - uses: actions/upload-artifact@v4
