@@ -96,6 +96,19 @@ canvas.addEventListener('pointerdown', () => {
 function frame(now) {
   const dt = (document.hidden || portraitTouchMode.matches) ? 0 : Math.min(0.083, (now - last) / 1000);
   last = now;
+  // Orientation gate freezes every state transition, including restart/next
+  // commands from a hardware keyboard. Rendering remains active.
+  if (portraitTouchMode.matches) {
+    pointerRestart = false;
+    buttonRestart = false;
+    pointerNext = false;
+    accumulator = 0;
+    draw(ctx, game);
+    syncUi();
+    renderVisualHud(game);
+    requestAnimationFrame(frame);
+    return;
+  }
   const restartDown = isDown('KeyR') || buttonRestart || (game.status === 'lost' && (isDown('Enter') || pointerRestart));
   const restart = restartDown && !restartLatch;
   restartLatch = restartDown;
