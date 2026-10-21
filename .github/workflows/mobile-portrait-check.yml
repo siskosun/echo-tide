@@ -37,7 +37,23 @@ jobs:
       - run: npm ci
       - run: npm install --no-save --package-lock=false playwright
       - run: npx playwright install --with-deps chromium
-      - run: node test/mobile-browser-smoke.mjs
+      - run: npm run build
+      - run: ET_SMOKE_BUILT=1 node test/mobile-browser-smoke.mjs
+      - name: Package unlisted local phone trial
+        run: |
+          mkdir -p phone-trial
+          cp -R dist phone-trial/dist
+          cp .github/MOBILE_TRIAL.md phone-trial/README.md
+          printf '%s\n' "$GITHUB_SHA" > phone-trial/BUILD_ID.txt
+          (cd phone-trial && zip -q -r ../echo-tide-phone-trial.zip .)
+          sha256sum echo-tide-phone-trial.zip > echo-tide-phone-trial.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: echo-tide-phone-trial
+          path: |
+            echo-tide-phone-trial.zip
+            echo-tide-phone-trial.sha256
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
         with:
