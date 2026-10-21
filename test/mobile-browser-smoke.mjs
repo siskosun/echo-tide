@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
 
 const port = 4179;
-const server = spawn('npm', ['run', 'dev', '--', '--host', '127.0.0.1', '--port', String(port), '--strictPort'], { stdio: 'pipe' });
+const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(port), '--strictPort'], { stdio: 'pipe' });
 let serverLog = '';
 server.stdout.on('data', b => { serverLog += b.toString(); });
 server.stderr.on('data', b => { serverLog += b.toString(); });
@@ -28,6 +28,7 @@ try {
     deviceScaleFactor: 1,
   });
   const page = await context.newPage();
+  page.setDefaultTimeout(10000);
   const errors = [];
   page.on('pageerror', error => errors.push(String(error)));
   await page.goto(url, {waitUntil:'networkidle'});
